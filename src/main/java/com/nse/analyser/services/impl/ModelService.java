@@ -11,6 +11,7 @@ import com.nse.analyser.models.underlyingInfos.TradableFnO_Contracts;
 import com.nse.analyser.records.OrderBookAnalytics;
 import com.nse.analyser.services.schedulers.NseDataRetrievalService;
 import com.nse.analyser.utils.DataTransformUtil;
+import com.nse.analyser.utils.DateTimeFormatters;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -127,10 +128,16 @@ public class ModelService {
 
         OptionLeg leg = new OptionLeg();
 
+        leg.setUnderlying(contract.getUnderlying());
+        leg.setUnderlyingValue(contract.getUnderlyingValue());
         leg.setExpiryDate(
-                LocalDate.parse(expiry)
+                LocalDate.parse(expiry, DateTimeFormatters.expiryDateFormatter)
         );
-        leg.setNseTimestamp(LocalDateTime.parse(nseTimestamp));
+        leg.setOptionType(type);
+        leg.setNseTimestamp(
+//                nseTimestamp
+                LocalDateTime.parse(nseTimestamp, DateTimeFormatters.nseTimestampFormatter)
+        );
 
         leg.setSnapshotTimestamp(snapshotTime);
 

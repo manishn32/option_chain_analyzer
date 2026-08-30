@@ -7,6 +7,7 @@ import com.nse.analyser.repositories.NseSnapshotRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.stereotype.Repository;
 
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -14,6 +15,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
+@Repository
 @RequiredArgsConstructor
 public class NseSnapshotRepositoryImpl implements NseSnapshotRepository {
 
@@ -40,7 +42,8 @@ public class NseSnapshotRepositoryImpl implements NseSnapshotRepository {
                         .optionActivity(OptionActivity.valueOf(rs.getString("activity")))
                         .nseTimestamp(
                                 rs.getTimestamp("nse_timestamp")
-                                        .toLocalDateTime())
+                                        .toLocalDateTime()
+                        )
                         .snapshotTimestamp(
                                 Instant.from(rs.getTimestamp("snapshot_timestamp")
                                         .toLocalDateTime()))
@@ -100,12 +103,13 @@ public class NseSnapshotRepositoryImpl implements NseSnapshotRepository {
         public void saveAll(List<OptionLeg> snapshots) {
 
             jdbcTemplate.batchUpdate("""
-                INSERT INTO option_chain.nse_snapshot_1s
+                INSERT INTO option_chain.nse_snapshot_1m
                 (
                     underlying,
                     underlying_value,
                     strike_price,
                     option_type,
+                    rank,
                     expiry_date,
                     open_interest,
                     change_in_open_interest,
@@ -122,7 +126,7 @@ public class NseSnapshotRepositoryImpl implements NseSnapshotRepository {
                     nse_timestamp,
                     snapshot_timestamp
                 )
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 """,
                     snapshots,
                     snapshots.size(),
@@ -131,36 +135,37 @@ public class NseSnapshotRepositoryImpl implements NseSnapshotRepository {
                         ps.setString(1, s.getUnderlying());
                         ps.setDouble(2, s.getUnderlyingValue());
                         ps.setDouble(3, s.getStrikePrice());
-                        ps.setObject(4, s.getOptionType());
-                        ps.setObject(5, s.getExpiryDate());
+                        ps.setString(4, s.getOptionType().name());
+                        ps.setString(5, s.getOptionRank().name());
+                        ps.setObject(6, s.getExpiryDate());
 
-                        ps.setLong(6, s.getOpenInterest());
-                        ps.setLong(7, s.getChangeInOpenInterest());
+                        ps.setLong(7, s.getOpenInterest());
+                        ps.setLong(8, s.getChangeInOpenInterest());
 
-                        ps.setDouble(8, s.getLTP());
-                        ps.setDouble(9, s.getPriceChange());
+                        ps.setDouble(9, s.getLTP());
+                        ps.setDouble(10, s.getPriceChange());
 
-                        ps.setLong(10, s.getBidQuantity());
-                        ps.setLong(11, s.getAskQuantity());
+                        ps.setLong(11, s.getBidQuantity());
+                        ps.setLong(12, s.getAskQuantity());
 
-                        ps.setDouble(12, s.getOiConcentration());
-                        ps.setDouble(13, s.getObi());
+                        ps.setDouble(13, s.getOiConcentration());
+                        ps.setDouble(14, s.getObi());
 
-                        ps.setLong(14, s.getTotalTradedVolume());
-                        ps.setDouble(15, s.getVolumeConcentration());
+                        ps.setLong(15, s.getTotalTradedVolume());
+                        ps.setDouble(16, s.getVolumeConcentration());
 
-                        ps.setDouble(16, s.getImpliedVolatility());
+                        ps.setDouble(17, s.getImpliedVolatility());
 
-                        ps.setObject(17, s.getOptionActivity());
+                        ps.setString(18, s.getOptionActivity().name());
 
                         ps.setTimestamp(
-                                18,
+                                19,
                                 Timestamp.valueOf(s.getNseTimestamp())
                         );
 
                         ps.setTimestamp(
-                                19,
-                                Timestamp.valueOf(String.valueOf(s.getSnapshotTimestamp()))
+                                20,
+                                Timestamp.from(s.getSnapshotTimestamp())
                         );
                     });
         }
