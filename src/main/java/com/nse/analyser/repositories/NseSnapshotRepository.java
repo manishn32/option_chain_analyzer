@@ -4,7 +4,9 @@ import com.nse.analyser.models.chainSnapShot.OptionLeg;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 
 public interface NseSnapshotRepository {
 
@@ -24,4 +26,8 @@ public interface NseSnapshotRepository {
             String optionType);
 
     void deleteOlderThan(LocalDateTime timestamp);
+
+    void insertKeys(List<OptionLeg> snapshots);
+
+    Set<String> findExistingIds(Collection<String> ids);
 }
