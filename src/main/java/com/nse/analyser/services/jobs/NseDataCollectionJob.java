@@ -12,9 +12,7 @@ import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 
-import java.util.Comparator;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -24,24 +22,15 @@ import java.util.stream.Stream;
 public class NseDataCollectionJob {
     private final ModelService modelService;
     private final NseSnapshotRepository nseSnapshotRepository;
+    private final SnapshotIdGenerator snapshotIdGenerator;
 
-//    @EventListener(ApplicationReadyEvent.class)
-//    public void fillDataForNifty(){
-//        List<ChainSnapshot> nifty = modelService.getChainSnapshots(InstrumentType.INDEX, "NIFTY", "01-Sep-2026");
-//        List<OptionLeg> collect1 = nifty.stream().map(ChainSnapshot::getCE).collect(Collectors.toList());
-//        List<OptionLeg> collect = nifty.stream().map(ChainSnapshot::getPE).collect(Collectors.toList());
-//        nseSnapshotRepository.saveAll(collect1);
-//        nseSnapshotRepository.saveAll(collect);
-//    }
-
-    @EventListener(ApplicationReadyEvent.class)
-    public void fillDataForNifty() {
-
+    public void fillDataForNifty(String symbol, String expiryDate) {
+        log.info("Starting to Fill data for symbol: {} expiry: {}",symbol,expiryDate);
         List<ChainSnapshot> snapshots =
                 modelService.getChainSnapshots(
                         InstrumentType.INDEX,
-                        "NIFTY",
-                        "01-Sep-2026"
+                        symbol,
+                        expiryDate
                 );
 
         snapshots = filterAroundAtm(snapshots);
@@ -54,16 +43,46 @@ public class NseDataCollectionJob {
                 .filter(Objects::nonNull)
                 .toList();
 
-        nseSnapshotRepository.saveAll(optionLegs);
+        optionLegs.forEach(snapshot ->
+                snapshot.setId(
+                        snapshotIdGenerator.generate(
+                                snapshot.getUnderlying(),
+                                snapshot.getExpiryDate(),
+//                                snapshot.getStrikePrice(),
+//                                snapshot.getOptionType(),
+                                snapshot.getNseTimestamp()
+                        )
+                ));
+        Set<String> existingIds =
+                nseSnapshotRepository.findExistingIds(optionLegs.stream().map(OptionLeg::getId).toList());
+
+        List<OptionLeg> newSnapshots =
+                optionLegs.stream()
+                .filter(s -> !existingIds.contains(s.getId()))
+                .toList();
+        nseSnapshotRepository.saveAll(newSnapshots);
+        if(optionLegs.isEmpty()) return;
+        nseSnapshotRepository.insertKeys(List.of(optionLegs.getFirst()));
+        log.info("Completed saving data into 1m table for symbol: {} expiry: {}",symbol,expiryDate);
     }
     private List<ChainSnapshot> filterAroundAtm(List<ChainSnapshot> snapshots) {
 
-        ChainSnapshot atm = snapshots.stream()
+        if(snapshots == null || snapshots.isEmpty()) return Collections.emptyList();
+
+        ChainSnapshot atm;
+        Optional<ChainSnapshot> atmOptional = snapshots.stream()
                 .filter(s -> s.getCE() != null)
                 .filter(s -> s.getCE().getOptionRank() == OptionRank.ATM)
                 .findFirst()
-                .orElseThrow();
+//                .orElseThrow()
+                ;
 
+        if(atmOptional.isPresent()){
+            atm = atmOptional.get();
+        }else{
+            log.warn("No ATM strikes present for the given data {}",snapshots);
+            return Collections.emptyList();
+        }
         double atmStrike = atm.getCE().getStrikePrice();
 
         return snapshots.stream()

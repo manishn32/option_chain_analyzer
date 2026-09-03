@@ -18,6 +18,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class OptionLeg {
 
+    private String id;
     private String underlying;
 
     private double underlyingValue;
