@@ -11,5 +11,6 @@ public enum TimeOfDay {
     T_330_PM,
     T_345_PM,
     PREVIOUS_DAY,
-    PRE_OPEN
+    PRE_OPEN,
+    DURING_DAY
 }

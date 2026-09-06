@@ -123,7 +123,7 @@ public class DailyJobs {
         }
     }
 
-    @Scheduled(cron = "0 * * * * *", zone = "Asia/Kolkata")
+//    @Scheduled(cron = "0 * * * * *", zone = "Asia/Kolkata")
     public void scheduledJob_forAllSymbols_original() {
 
         if(mapOfSymbolToExpiry == null){
@@ -133,7 +133,7 @@ public class DailyJobs {
         List<CollectionTask> tasks =
                 taskBuilder.buildTasks(
                         mapOfSymbolToExpiry,
-                        TimeOfDay.PREVIOUS_DAY
+                        TimeOfDay.DURING_DAY
                 );
 
         if(tasks.isEmpty()) {
@@ -152,7 +152,7 @@ public class DailyJobs {
 
         collectionExecutorService.execute(
                 tasks,
-                TimeOfDay.PREVIOUS_DAY
+                TimeOfDay.DURING_DAY
         );
     }
 
