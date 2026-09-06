@@ -2,8 +2,10 @@ package com.nse.analyser.repositories.impl;
 
 import com.nse.analyser.enums.OptionActivity;
 import com.nse.analyser.enums.OptionType;
+import com.nse.analyser.models.MarketProjection;
 import com.nse.analyser.models.chainSnapShot.OptionLeg;
 import com.nse.analyser.repositories.NseSnapshotRepository;
+import com.nse.analyser.utils.ClickHouseScripts;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -45,9 +47,13 @@ public class NseSnapshotRepositoryImpl implements NseSnapshotRepository {
                                 rs.getTimestamp("nse_timestamp")
                                         .toLocalDateTime()
                         )
+//                        .snapshotTimestamp(
+//                                Instant.from(rs.getTimestamp("snapshot_timestamp")
+//                                        .toLocalDateTime()))
                         .snapshotTimestamp(
-                                Instant.from(rs.getTimestamp("snapshot_timestamp")
-                                        .toLocalDateTime()))
+                                rs.getTimestamp("snapshot_timestamp")
+                                        .toInstant()
+                        )
                         .build();
 
         @Override
@@ -101,35 +107,9 @@ public class NseSnapshotRepositoryImpl implements NseSnapshotRepository {
         }
 
         @Override
-        public void saveAll(List<OptionLeg> snapshots) {
+        public void saveAll(List<OptionLeg> snapshots, String table) {
 
-            jdbcTemplate.batchUpdate("""
-                INSERT INTO option_chain.nse_snapshot_1m
-                (
-                    id,
-                    underlying,
-                    underlying_value,
-                    strike_price,
-                    option_type,
-                    rank,
-                    expiry_date,
-                    open_interest,
-                    change_in_open_interest,
-                    ltp,
-                    ltp_change,
-                    bid_quantity,
-                    ask_quantity,
-                    oi_concentration,
-                    order_book_imbalance,
-                    traded_volume,
-                    volume_concentration,
-                    implied_volatility,
-                    activity,
-                    nse_timestamp,
-                    snapshot_timestamp
-                )
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-                """,
+            jdbcTemplate.batchUpdate(String.format(ClickHouseScripts.SNAPSHOT_TABLE_INSERT,table),
                     snapshots,
                     snapshots.size(),
                     (ps, s) -> {
@@ -267,5 +247,268 @@ public class NseSnapshotRepositoryImpl implements NseSnapshotRepository {
                 1000,
                 (ps, snapshot) -> ps.setString(1, snapshot.getId())
         );
+    }
+
+    @Override
+    public List<OptionLeg> findLatestForProjection(
+            String tableName,
+            String underlying,
+            LocalDate expiryDate,
+            int limit) {
+
+        validateProjectionTableName(tableName);
+
+        String sql = """
+                SELECT *
+                FROM option_chain.%s
+                WHERE underlying = ?
+                  AND expiry_date = ?
+                ORDER BY snapshot_timestamp DESC
+                LIMIT ?
+                """.formatted(tableName);
+
+        return jdbcTemplate.query(
+                sql,
+                ROW_MAPPER,
+                underlying,
+                expiryDate,
+                limit
+        );
+    }
+
+    @Override
+    public void saveProjection(String tableName, MarketProjection projection) {
+
+        validateProjectionTableName(tableName);
+
+        String sql = """
+                INSERT INTO option_chain.%s
+                (
+                    timestamp,
+                    timeframe,
+                    underlying,
+                    expiry_date,
+                    spot_price,
+                    support_strike,
+                    support_strength,
+                    resistance_strike,
+                    resistance_strength,
+                    bull_score,
+                    bear_score,
+                    smart_money_flow,
+                    dealer_pressure,
+                    breakout_probability,
+                    strike_migration_score,
+                    iv_bias,
+                    market_projection_score,
+                    regime,
+                    commentary
+                )
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                """.formatted(tableName);
+
+        jdbcTemplate.update(
+                sql,
+                Timestamp.valueOf(projection.getTimestamp()),
+                projection.getTimeframe(),
+                projection.getUnderlying(),
+                projection.getExpiryDate(),
+                projection.getSpotPrice(),
+                projection.getSupportStrike(),
+                projection.getSupportStrength(),
+                projection.getResistanceStrike(),
+                projection.getResistanceStrength(),
+                projection.getBullScore(),
+                projection.getBearScore(),
+                projection.getSmartMoneyFlow(),
+                projection.getDealerPressure(),
+                projection.getBreakoutProbability(),
+                projection.getStrikeMigrationScore(),
+                projection.getIvBias(),
+                projection.getMarketProjectionScore(),
+                projection.getMarketRegime(),
+                projection.getCommentary()
+        );
+    }
+
+    @Override
+    public MarketProjection findLatestProjection(
+            String tableName,
+            String underlying,
+            LocalDate expiryDate) {
+
+        validateProjectionTableName(tableName);
+
+        String sql = """
+                SELECT *
+                FROM option_chain.%s
+                WHERE underlying = ?
+                  AND expiry_date = ?
+                ORDER BY timestamp DESC
+                LIMIT 1
+                """.formatted(tableName);
+
+        List<MarketProjection> rows = jdbcTemplate.query(
+                sql,
+                (rs, rowNum) -> MarketProjection.builder()
+                        .timestamp(rs.getTimestamp("timestamp").toLocalDateTime())
+                        .timeframe(rs.getString("timeframe"))
+                        .underlying(rs.getString("underlying"))
+                        .expiryDate(rs.getDate("expiry_date").toLocalDate())
+                        .spotPrice(rs.getDouble("spot_price"))
+                        .supportStrike(rs.getDouble("support_strike"))
+                        .supportStrength(rs.getDouble("support_strength"))
+                        .resistanceStrike(rs.getDouble("resistance_strike"))
+                        .resistanceStrength(rs.getDouble("resistance_strength"))
+                        .bullScore(rs.getDouble("bull_score"))
+                        .bearScore(rs.getDouble("bear_score"))
+                        .smartMoneyFlow(rs.getDouble("smart_money_flow"))
+                        .dealerPressure(rs.getDouble("dealer_pressure"))
+                        .breakoutProbability(rs.getDouble("breakout_probability"))
+                        .strikeMigrationScore(rs.getDouble("strike_migration_score"))
+                        .ivBias(rs.getDouble("iv_bias"))
+                        .marketProjectionScore(rs.getDouble("market_projection_score"))
+                        .marketRegime(rs.getString("regime"))
+                        .commentary(rs.getString("commentary"))
+                        .build(),
+                underlying,
+                expiryDate
+        );
+
+        return rows.isEmpty() ? null : rows.getFirst();
+    }
+
+    @Override
+    public void saveStrikeMigration(
+            String timeframe,
+            String underlying,
+            LocalDate expiryDate,
+            double supportStrike,
+            double resistanceStrike) {
+
+        jdbcTemplate.update(
+                """
+                INSERT INTO option_chain.strike_migration
+                (
+                    timestamp,
+                    timeframe,
+                    underlying,
+                    expiry_date,
+                    support_strike,
+                    resistance_strike
+                )
+                VALUES (?,?,?,?,?,?)
+                """,
+                Timestamp.valueOf(LocalDateTime.now()),
+                timeframe,
+                underlying,
+                expiryDate,
+                supportStrike,
+                resistanceStrike
+        );
+    }
+
+    @Override
+    public void saveProjectionAccuracy(
+            String timeframe,
+            String underlying,
+            LocalDate expiryDate,
+            String projectedRegime,
+            double projectedScore,
+            double actualMove,
+            boolean success) {
+
+        jdbcTemplate.update(
+                """
+                INSERT INTO option_chain.projection_accuracy
+                (
+                    prediction_time,
+                    timeframe,
+                    underlying,
+                    expiry_date,
+                    projected_regime,
+                    projected_score,
+                    actual_move,
+                    success
+                )
+                VALUES (?,?,?,?,?,?,?,?)
+                """,
+                Timestamp.valueOf(LocalDateTime.now()),
+                timeframe,
+                underlying,
+                expiryDate,
+                projectedRegime,
+                projectedScore,
+                actualMove,
+                success ? 1 : 0
+        );
+    }
+
+    @Override
+    public List<MarketProjection> findRecentProjections(
+            String tableName,
+            String underlying,
+            LocalDate expiryDate,
+            int limit) {
+
+        validateProjectionTableName(tableName);
+
+        String sql = """
+                SELECT *
+                FROM option_chain.%s
+                WHERE underlying = ?
+                  AND expiry_date = ?
+                ORDER BY timestamp DESC
+                LIMIT ?
+                """.formatted(tableName);
+
+        return jdbcTemplate.query(
+                sql,
+                (rs, rowNum) -> MarketProjection.builder()
+                        .timestamp(rs.getTimestamp("timestamp").toLocalDateTime())
+                        .timeframe(rs.getString("timeframe"))
+                        .underlying(rs.getString("underlying"))
+                        .expiryDate(rs.getDate("expiry_date").toLocalDate())
+                        .spotPrice(rs.getDouble("spot_price"))
+                        .supportStrike(rs.getDouble("support_strike"))
+                        .supportStrength(rs.getDouble("support_strength"))
+                        .resistanceStrike(rs.getDouble("resistance_strike"))
+                        .resistanceStrength(rs.getDouble("resistance_strength"))
+                        .bullScore(rs.getDouble("bull_score"))
+                        .bearScore(rs.getDouble("bear_score"))
+                        .smartMoneyFlow(rs.getDouble("smart_money_flow"))
+                        .dealerPressure(rs.getDouble("dealer_pressure"))
+                        .breakoutProbability(rs.getDouble("breakout_probability"))
+                        .strikeMigrationScore(rs.getDouble("strike_migration_score"))
+                        .ivBias(rs.getDouble("iv_bias"))
+                        .marketProjectionScore(rs.getDouble("market_projection_score"))
+                        .marketRegime(rs.getString("regime"))
+                        .commentary(rs.getString("commentary"))
+                        .build(),
+                underlying,
+                expiryDate,
+                limit
+        );
+    }
+
+    private void validateProjectionTableName(String tableName) {
+        Set<String> allowed = Set.of(
+                "nse_snapshot_1m",
+                "nse_snapshot_3m",
+                "nse_snapshot_5m",
+                "nse_snapshot_15m",
+                "nse_snapshot_30m",
+                "nse_snapshot_1h",
+                "market_projection_1m",
+                "market_projection_3m",
+                "market_projection_5m",
+                "market_projection_15m",
+                "market_projection_30m",
+                "market_projection_1h"
+        );
+
+        if (!allowed.contains(tableName)) {
+            throw new IllegalArgumentException("Invalid table name: " + tableName);
+        }
     }
 }

@@ -7,6 +7,8 @@ import com.nse.analyser.enums.InstrumentType;
 import com.nse.analyser.enums.OptionType;
 import com.nse.analyser.models.ChainSnapshot;
 import com.nse.analyser.models.chainSnapShot.OptionLeg;
+import com.nse.analyser.models.contractSnapShot.MarketDepth;
+import com.nse.analyser.models.holidayInfo.Holiday;
 import com.nse.analyser.models.underlyingInfos.TradableFnO_Contracts;
 import com.nse.analyser.records.OrderBookAnalytics;
 import com.nse.analyser.services.schedulers.NseDataRetrievalService;
@@ -48,9 +50,10 @@ public class ModelService {
         List<ChainSnapshot> snapshots = new ArrayList<>();
 
         OptionChainRecords records = optionChainResponses.getRecords();
+        if(records == null) return snapshots;
         OptionChainFiltered filtered = optionChainResponses.getFiltered();
 
-        if(records == null || records.getData() == null) return snapshots;
+        if( records.getData() == null) return snapshots;
 
         String nseTimestamp = records.getTimestamp();
 
@@ -64,8 +67,11 @@ public class ModelService {
                             filtered.getPE(),
                             atmStrike,
                             nseTimestamp);
-
-            snapshots.add(chainSnapshot);
+            if( chainSnapshot != null) {
+                chainSnapshot.setCeActivity(filtered.getCE());
+                chainSnapshot.setPeActivity(filtered.getPE());
+                snapshots.add(chainSnapshot);
+            }
         }
         log.info("Completed converting into data model");
         return snapshots;
@@ -80,8 +86,20 @@ public class ModelService {
             Double atmStrike,
             String nseTimestamp) {
 
+        if(strikeData.getCe().getUnderlying() == null || strikeData.getCe().getUnderlying().isEmpty() || strikeData.getCe().getUnderlying().isBlank()){
+            return null;
+        }
         ChainSnapshot snapshot = new ChainSnapshot();
 
+        snapshot.setId(
+                strikeData.getCe().getUnderlying()
+                        + "_"
+                        + strikeData.getCe().getExpiryDate()
+                        + "_"
+                        + nseTimestamp
+                        + "_"
+                        + strikeData.getStrikePrice()
+        );
         snapshot.setUnderlying(
                 strikeData.getCe() != null
                         ? strikeData.getCe().getUnderlying()
@@ -101,13 +119,35 @@ public class ModelService {
         snapshot.setStrikePrice(strikeData.getStrikePrice());
 
         snapshot.setNseTimestamp(nseTimestamp);
-        snapshot.setCE(toOptionLeg(strikeData.getCe(), OptionType.CE,ceActivity,peActivity,atmStrike,nseTimestamp,snapshotTime,strikeData.getExpiryDates()));
-        snapshot.setPE(toOptionLeg(strikeData.getPe(),OptionType.PE,ceActivity,peActivity,atmStrike, nseTimestamp,snapshotTime,strikeData.getExpiryDates()));
+        snapshot.setCE(
+                toOptionLeg(strikeData.getCe(),
+                        OptionType.CE,
+                        ceActivity,
+                        peActivity,
+                        atmStrike,
+                        nseTimestamp,
+                        snapshotTime,
+                        strikeData.getExpiryDates()));
+        snapshot.setPE(
+                toOptionLeg(strikeData.getPe(),
+                        OptionType.PE,
+                        ceActivity,
+                        peActivity,
+                        atmStrike,
+                        nseTimestamp,
+                        snapshotTime,
+                        strikeData.getExpiryDates()));
 
         snapshot.setSnapshotTime(snapshotTime);
 
-        snapshot.setPcr_oi(safeDivide(strikeData.getPe().getOpenInterest(),strikeData.getCe().getOpenInterest()));
-        snapshot.setPcr_volume(safeDivide(strikeData.getPe().getTotalTradedVolume(), strikeData.getCe().getTotalTradedVolume()));
+        snapshot.setPcr_oi(
+                safeDivide(strikeData.getPe().getOpenInterest()
+                        ,strikeData.getCe().getOpenInterest())
+        );
+        snapshot.setPcr_volume(
+                safeDivide(strikeData.getPe().getTotalTradedVolume()
+                        , strikeData.getCe().getTotalTradedVolume())
+        );
 
         return snapshot;
     }
@@ -128,6 +168,13 @@ public class ModelService {
 
         OptionLeg leg = new OptionLeg();
 
+        MarketDepth marketDepth = new MarketDepth();
+        marketDepth.setBestAskPrice(contract.getBuyPrice1());
+        marketDepth.setBestAskQuantity(contract.getBuyQuantity1());
+        marketDepth.setBestBidPrice(contract.getSellPrice1());
+        marketDepth.setBestBidQuantity(contract.getSellQuantity1());
+        marketDepth.setTotalBuyQuantity(contract.getTotalBuyQuantity());
+        marketDepth.setTotalSellQuantity(contract.getTotalSellQuantity());
         leg.setUnderlying(contract.getUnderlying());
         leg.setUnderlyingValue(contract.getUnderlyingValue());
         leg.setExpiryDate(
@@ -183,9 +230,7 @@ public class ModelService {
                 safeDivideAndRound(contract.getTotalTradedVolume(),
                         type == OptionType.CE ? ceActivity.getTotVol() : peActivity.getTotVol(),
                         2));
-
-        leg.setBidQuantity(contract.getBuyQuantity1());
-        leg.setAskQuantity(contract.getSellQuantity1());
+        leg.setMarketDepth(marketDepth);
         leg.setOptionActivity(determineOptionActivity(contract.getChange(), contract.getChangeinOpenInterest()));
         return leg;
     }
@@ -205,14 +250,24 @@ public class ModelService {
         return contracts;
     }
 
-    public Map<String, List<String>> mapIndicesAndExpiry(){
+    public Map<InstrumentType, Map<String, List<String>>> mapIndicesAndExpiry(){
+        Map<InstrumentType, Map<String, List<String>>> mapOfSymbolsToExpiryBoth = new HashMap<>();
         Map<String, List<String>> mapOfSymbolsToExpiry = new HashMap<>();
         TradableFnO_Contracts tradableFnOContracts = getTradableFnOContracts();
-        for(String index : tradableFnOContracts.getIndices()){
+        for(String index : tradableFnOContracts.getStocks()){
             List<String> strings = nseDataRetrievalService.fetchExpirationDates(index);
-            if(!strings.isEmpty()) mapOfSymbolsToExpiry.put(index, strings);
+            if(!strings.isEmpty()){
+                mapOfSymbolsToExpiry.put(index, strings);}
         }
-        return mapOfSymbolsToExpiry;
+        mapOfSymbolsToExpiryBoth.put(InstrumentType.EQUITY, mapOfSymbolsToExpiry);
+
+        Map<String, List<String>> mapOfIndexesToExpiry = new HashMap<>();
+        for (String index : tradableFnOContracts.getIndices()){
+            List<String> strings = nseDataRetrievalService.fetchExpirationDates(index);
+            if(!strings.isEmpty()) mapOfIndexesToExpiry.put(index, strings);
+        }
+        mapOfSymbolsToExpiryBoth.put(InstrumentType.INDEX,mapOfIndexesToExpiry);
+        return mapOfSymbolsToExpiryBoth;
     }
 
     public Map<String, List<String>> mapSymbolAndExpiry(){
@@ -224,5 +279,9 @@ public class ModelService {
             if(!strings.isEmpty()) mapOfSymbolsToExpiry.put(index, strings);
         }
         return mapOfSymbolsToExpiry;
+    }
+
+    public List<Holiday> fetchAllNseHolidays(){
+       return nseDataRetrievalService.findAllNseHolidays();
     }
 }

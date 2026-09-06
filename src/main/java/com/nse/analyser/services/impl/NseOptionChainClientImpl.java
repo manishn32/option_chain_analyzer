@@ -2,11 +2,14 @@ package com.nse.analyser.services.impl;
 
 import com.nse.analyser.dtos.nseResponse.NseOptionChainResponse;
 import com.nse.analyser.dtos.nseUnderLyingInfoDTOs.UnderLyingInfoResponse;
+import com.nse.analyser.models.holidayInfo.Holiday;
+import com.nse.analyser.models.holidayInfo.HolidayResponse;
 import com.nse.analyser.services.NseOptionChainClient;
 import com.nse.analyser.services.NseRestClient;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.Collections;
 import java.util.List;
@@ -20,6 +23,7 @@ public class NseOptionChainClientImpl implements NseOptionChainClient {
 
     private final NseRestClient client;
 
+    ObjectMapper mapper = new ObjectMapper();
     @Override
     public NseOptionChainResponse fetchOptionChainDataForIndices(String symbol, String expiry) {
         // Implementation to fetch option chain data from NSE API
@@ -73,5 +77,17 @@ public class NseOptionChainClientImpl implements NseOptionChainClient {
         return client.get(
                 NSE_HOME + NSE_UNDERLYING_INFORMATION,
                 UnderLyingInfoResponse.class);
+    }
+
+    @Override
+    public List<Holiday> fetchNseHolidays() {
+
+        HolidayResponse response =
+                client.get(
+                        NSE_HOME + NSE_TRADING_HOLIDAYS,
+                        HolidayResponse.class
+                );
+
+        return response.getCm();
     }
 }

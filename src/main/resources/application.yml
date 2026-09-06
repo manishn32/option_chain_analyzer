@@ -1,0 +1,110 @@
+spring:
+  application:
+    name: analyser
+
+  datasource:
+    url: jdbc:clickhouse://localhost:8123
+    username: username
+    password: userpassword
+    driver-class-name: com.clickhouse.jdbc.ClickHouseDriver
+
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017/analyser
+
+logging:
+  level:
+    com.nse.analyser: DEBUG
+
+projection:
+  jobs:
+    enabled: false
+    cron:
+      1m: "5 * * * * *"
+      3m: "10 */3 * * * *"
+      5m: "15 */5 * * * *"
+      15m: "20 */15 * * * *"
+      30m: "25 */30 * * * *"
+      1h: "30 0 * * * *"
+      accuracy: "45 */10 * * * *"
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      nseApi:
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 20
+        minimumNumberOfCalls: 10
+        failureRateThreshold: 50
+        slowCallRateThreshold: 50
+        waitDurationInOpenState: 30s
+        permittedNumberOfCallsInHalfOpenState: 2
+      projectionService:
+        registerHealthIndicator: true
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 5s
+        failureRateThreshold: 50.0
+        recordExceptions:
+          - java.sql.SQLException
+          - org.springframework.dao.DataIntegrityViolationException
+      projectionController:
+        registerHealthIndicator: true
+        slidingWindowSize: 5
+        minimumNumberOfCalls: 2
+        permittedNumberOfCallsInHalfOpenState: 2
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 3s
+        failureRateThreshold: 60.0
+
+  ratelimiter:
+    instances:
+      nseApi:
+        limitRefreshPeriod: 1s
+        limitForPeriod: 5
+        timeoutDuration: 2s
+      projectionCalculate:
+        registerHealthIndicator: true
+        limitRefreshPeriod: 1m
+        limitForPeriod: 10
+        timeoutDuration: 5s
+      projectionLatest:
+        registerHealthIndicator: true
+        limitRefreshPeriod: 1m
+        limitForPeriod: 60
+        timeoutDuration: 2s
+      projectionDashboard:
+        registerHealthIndicator: true
+        limitRefreshPeriod: 1m
+        limitForPeriod: 30
+        timeoutDuration: 3s
+      projectionAccuracy:
+        registerHealthIndicator: true
+        limitRefreshPeriod: 5m
+        limitForPeriod: 5
+        timeoutDuration: 10s
+
+  retry:
+    instances:
+      nseCookiRefresh:
+        maxAttempts: 2
+        waitDuration: 500ms
+        retryExceptions:
+          - java.io.IOException
+          - java.net.SocketTimeoutException
+          - java.net.ConnectException
+      projectionService:
+        maxAttempts: 3
+        waitDuration: 1000
+        retryExceptions:
+          - java.sql.SQLException
+          - org.springframework.dao.DataIntegrityViolationException
+          - java.net.ConnectException
+      projectionRepository:
+        maxAttempts: 2
+        waitDuration: 500
+        retryExceptions:
+          - java.sql.SQLException
+

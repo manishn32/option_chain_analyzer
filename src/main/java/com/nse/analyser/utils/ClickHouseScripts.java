@@ -181,4 +181,32 @@ public class ClickHouseScripts {
             expiry_date,
             bucket_start
         """;
+
+    public static final String SNAPSHOT_TABLE_INSERT = """
+                INSERT INTO option_chain.nse_snapshot_%s
+                (
+                    id,
+                    underlying,
+                    underlying_value,
+                    strike_price,
+                    option_type,
+                    rank,
+                    expiry_date,
+                    open_interest,
+                    change_in_open_interest,
+                    ltp,
+                    ltp_change,
+                    bid_quantity,
+                    ask_quantity,
+                    oi_concentration,
+                    order_book_imbalance,
+                    traded_volume,
+                    volume_concentration,
+                    implied_volatility,
+                    activity,
+                    nse_timestamp,
+                    snapshot_timestamp
+                )
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                """;
 }

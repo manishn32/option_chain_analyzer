@@ -11,6 +11,10 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class MarketDepth {
 
+    private Long totalBuyQuantity;
+
+    private Long totalSellQuantity;
+
     private Double bestBidPrice;
 
     private Long bestBidQuantity;

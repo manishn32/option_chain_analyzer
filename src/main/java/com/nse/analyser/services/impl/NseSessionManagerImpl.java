@@ -127,6 +127,10 @@ public class NseSessionManagerImpl implements NseSessionManager {
     }
 
     public synchronized void refreshSession() {
+        synchronized (this){
+            if(!expired()) return;;
+        }
+
         log.info("Refreshing session");
         cookieStore.clear();
 

@@ -3,6 +3,7 @@ package com.nse.analyser.models.chainSnapShot;
 import com.nse.analyser.enums.OptionActivity;
 import com.nse.analyser.enums.OptionRank;
 import com.nse.analyser.enums.OptionType;
+import com.nse.analyser.models.contractSnapShot.MarketDepth;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -84,4 +85,6 @@ public class OptionLeg {
     private LocalDateTime nseTimestamp;
 
     private Instant snapshotTimestamp;
+
+    private MarketDepth marketDepth;
 }

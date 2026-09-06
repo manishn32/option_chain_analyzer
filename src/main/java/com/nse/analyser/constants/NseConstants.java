@@ -9,4 +9,6 @@ public class NseConstants {
     public static final String NSE_OPTIONS_CHAIN_EQUITY_URL = "/api/option-chain-v3?type=Equity&symbol=%s&expiry=%s";
     public static final String DEFAULT_DATE_EXPIRY_SEARCH = "01-Jan-1999";
     public static final String NSE_UNDERLYING_INFORMATION = "/api/underlying-information";
+
+    public static final String NSE_TRADING_HOLIDAYS ="/api/holiday-master?type=trading";
 }

@@ -82,10 +82,10 @@ public class OptionChainIngestionController {
 
     @GetMapping("/indicesAndExpiry")
     public ResponseEntity<OptionChainResponse> getIndicesAndExpiry() {
-        Map<String, List<String>> stringListMap = modelService.mapIndicesAndExpiry();
+        Map<InstrumentType, Map<String, List<String>>> instrumentTypeMapMap = modelService.mapIndicesAndExpiry();
         return
                 ResponseEntity.ok(
-                        new OptionChainResponse("SUCCESS","Indices and expiry","all indices",stringListMap)
+                        new OptionChainResponse("SUCCESS","Indices and expiry","all indices",instrumentTypeMapMap)
                 );
     }
 
