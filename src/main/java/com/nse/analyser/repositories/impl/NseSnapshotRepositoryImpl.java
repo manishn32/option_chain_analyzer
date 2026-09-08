@@ -108,47 +108,47 @@ public class NseSnapshotRepositoryImpl implements NseSnapshotRepository {
 
         @Override
         public void saveAll(List<OptionLeg> snapshots, String table) {
-
+            if(snapshots == null || snapshots.isEmpty()) {return;}
             jdbcTemplate.batchUpdate(String.format(ClickHouseScripts.SNAPSHOT_TABLE_INSERT,table),
                     snapshots,
                     snapshots.size(),
                     (ps, s) -> {
-                        ps.setString(1,s.getId());
-                        ps.setString(2, s.getUnderlying());
-                        ps.setDouble(3, s.getUnderlyingValue());
-                        ps.setDouble(4, s.getStrikePrice());
-                        ps.setString(5, s.getOptionType().name());
-                        ps.setString(6, s.getOptionRank().name());
-                        ps.setObject(7, s.getExpiryDate());
+                        ps.setString(1, s.getUnderlying());
+                        ps.setDouble(2, s.getUnderlyingValue());
+                        ps.setDouble(3, s.getStrikePrice());
+                        ps.setString(4, s.getOptionType().name());
+                        ps.setString(5, s.getOptionRank().name());
+                        ps.setObject(6, s.getExpiryDate());
 
-                        ps.setLong(8, s.getOpenInterest());
-                        ps.setLong(9, s.getChangeInOpenInterest());
+                        ps.setLong(7, s.getOpenInterest());
+                        ps.setLong(8, s.getChangeInOpenInterest());
 
-                        ps.setDouble(10, s.getLTP());
-                        ps.setDouble(11, s.getPriceChange());
+                        ps.setDouble(9, s.getLTP());
+                        ps.setDouble(10, s.getPriceChange());
 
-                        ps.setLong(12, s.getBidQuantity());
-                        ps.setLong(13, s.getAskQuantity());
+                        ps.setLong(11, s.getMarketDepth().getBestBidQuantity());
+                        ps.setLong(12, s.getMarketDepth().getBestAskQuantity());
 
-                        ps.setDouble(14, s.getOiConcentration());
-                        ps.setDouble(15, s.getObi());
+                        ps.setDouble(13, s.getOiConcentration());
+                        ps.setDouble(14, s.getObi());
 
-                        ps.setLong(16, s.getTotalTradedVolume());
-                        ps.setDouble(17, s.getVolumeConcentration());
+                        ps.setLong(15, s.getTotalTradedVolume());
+                        ps.setDouble(16, s.getVolumeConcentration());
 
-                        ps.setDouble(18, s.getImpliedVolatility());
+                        ps.setDouble(17, s.getImpliedVolatility());
 
-                        ps.setString(19, s.getOptionActivity().name());
+                        ps.setString(18, s.getOptionActivity().name());
 
                         ps.setTimestamp(
-                                20,
+                                19,
                                 Timestamp.valueOf(s.getNseTimestamp())
                         );
 
                         ps.setTimestamp(
-                                21,
+                                20,
                                 Timestamp.from(s.getSnapshotTimestamp())
                         );
+                        ps.setString(21,s.getId());
                     });
         }
 

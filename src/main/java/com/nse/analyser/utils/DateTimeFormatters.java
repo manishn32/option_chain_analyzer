@@ -1,6 +1,7 @@
 package com.nse.analyser.utils;
 
 
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.util.Locale;
@@ -17,4 +18,6 @@ public class DateTimeFormatters {
                     .parseCaseInsensitive()
                     .appendPattern("dd-MMM-yyyy HH:mm:ss")
                     .toFormatter(Locale.ENGLISH);
+
+    public static ZoneId IST = ZoneId.of("Asia/Kolkata");
 }

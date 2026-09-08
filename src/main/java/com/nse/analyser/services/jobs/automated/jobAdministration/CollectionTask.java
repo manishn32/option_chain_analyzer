@@ -1,5 +1,6 @@
 package com.nse.analyser.services.jobs.automated.jobAdministration;
 
+import com.nse.analyser.enums.DataBaseChoice;
 import com.nse.analyser.enums.InstrumentType;
 import com.nse.analyser.enums.TimeOfDay;
 import lombok.AllArgsConstructor;
@@ -20,5 +21,9 @@ public class CollectionTask {
     private InstrumentType instrumentType;
 
     private TimeOfDay timeOfDay;
+
+    private DataBaseChoice dataBaseChoice;
+
+    private String intradayKey;
 
 }

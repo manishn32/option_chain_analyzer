@@ -1,5 +1,6 @@
 package com.nse.analyser.models.jobStatus;
 
+import com.nse.analyser.enums.DataBaseChoice;
 import com.nse.analyser.enums.InstrumentType;
 import com.nse.analyser.enums.TimeOfDay;
 import lombok.Builder;
@@ -44,4 +45,10 @@ public class CollectionState {
     private String errorMessage;
 
     private TimeOfDay timeOfDay;
+
+    private DataBaseChoice dataBaseChoice;
+
+    private String intradayKey;
+
+    private LocalDateTime nseTimestamp;
 }

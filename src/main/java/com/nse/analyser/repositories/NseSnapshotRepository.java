@@ -1,5 +1,6 @@
 package com.nse.analyser.repositories;
 
+import com.nse.analyser.models.ChainSnapshot;
 import com.nse.analyser.models.MarketProjection;
 import com.nse.analyser.models.chainSnapShot.OptionLeg;
 

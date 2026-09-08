@@ -1,6 +1,6 @@
 package com.nse.analyser.services.jobs.automated.jobAdministration;
 
-import com.nse.analyser.enums.InstrumentType;
+import com.nse.analyser.enums.DataBaseChoice;
 import com.nse.analyser.enums.TimeOfDay;
 import com.nse.analyser.models.jobStatus.CollectionState;
 import com.nse.analyser.repositories.mongoRepositories.jobRepositories.CollectionStateRepository;
@@ -10,6 +10,8 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.util.Optional;
+
+import static com.nse.analyser.utils.DateTimeFormatters.IST;
 
 @Service
 @RequiredArgsConstructor
@@ -23,16 +25,33 @@ public class CollectionGuardService {
     public boolean shouldCollect(
             String symbol,
             String expiry,
-            TimeOfDay timeOfDay
+            TimeOfDay timeOfDay,
+            DataBaseChoice dataBaseChoice,
+            String intradayKey
     ) {
 
-        Optional<CollectionState> existing =
-                repository.findBySymbolAndExpiryDateAndBusinessDate(
+//        if(timeOfDay == TimeOfDay.DURING_DAY && dataBaseChoice == DataBaseChoice.MongoDB){
+//            return true;
+//        }
+//
+//        if(dataBaseChoice == DataBaseChoice.ClickHouse){
+//            return true;
+//        }
+        Optional<CollectionState> existing = timeOfDay != TimeOfDay.DURING_DAY ?
+                repository.findBySymbolAndExpiryDateAndBusinessDateAndTimeOfDayAndDataBaseChoice(
                         symbol,
                         expiry,
-                        LocalDate.now(),
-                        timeOfDay
-                );
+                        LocalDate.now(IST),
+                        timeOfDay,
+                        dataBaseChoice
+                )
+                : repository.findBySymbolAndExpiryDateAndDataBaseChoiceAndIntradayKey(
+                symbol,
+                expiry,
+                dataBaseChoice,
+                intradayKey
+        )
+                ;
 
         if(existing.isEmpty()){
             return true;

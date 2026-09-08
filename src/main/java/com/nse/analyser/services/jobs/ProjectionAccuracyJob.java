@@ -10,6 +10,8 @@ import org.springframework.stereotype.Component;
 import java.time.LocalDate;
 import java.util.List;
 
+import static com.nse.analyser.utils.DateTimeFormatters.IST;
+
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -23,7 +25,7 @@ public class ProjectionAccuracyJob {
         try {
             List<AccuracySummary> summaries = marketProjectionService.trackAccuracyAll(
                     "NIFTY",
-                    LocalDate.now().plusWeeks(1)
+                    LocalDate.now(IST).plusWeeks(1)
             );
             summaries.forEach(s -> log.info(
                     "Accuracy [{}] samples={} accuracy={}%%",

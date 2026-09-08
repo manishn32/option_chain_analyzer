@@ -1,5 +1,6 @@
 package com.nse.analyser.repositories.mongoRepositories.jobRepositories;
 
+import com.nse.analyser.enums.DataBaseChoice;
 import com.nse.analyser.enums.TimeOfDay;
 import com.nse.analyser.models.jobStatus.CollectionState;
 import com.nse.analyser.models.jobStatus.CollectionStatus;
@@ -14,11 +15,12 @@ import java.util.Optional;
 public interface CollectionStateRepository
         extends MongoRepository<CollectionState,String> {
 
-    Optional<CollectionState> findBySymbolAndExpiryDateAndBusinessDate(
+    Optional<CollectionState> findBySymbolAndExpiryDateAndBusinessDateAndTimeOfDayAndDataBaseChoice(
             String symbol,
             String expiryDate,
             LocalDate businessDate,
-            TimeOfDay timeOfDay
+            TimeOfDay timeOfDay,
+            DataBaseChoice dataBaseChoice
     );
 
     long countBySymbolAndBusinessDateAndStatus(
@@ -30,4 +32,6 @@ public interface CollectionStateRepository
     List<CollectionState> findByStatus(
             CollectionStatus status
     );
+
+    Optional<CollectionState> findBySymbolAndExpiryDateAndDataBaseChoiceAndIntradayKey(String symbol, String expiry, DataBaseChoice dataBaseChoice, String intradayKey);
 }

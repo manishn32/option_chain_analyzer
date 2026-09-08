@@ -12,6 +12,7 @@ import org.springframework.data.mongodb.core.index.CompoundIndexes;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
 
 @Document
 //        (collection = "Option_chain_snapshot")
@@ -25,7 +26,21 @@ import java.time.Instant;
 def = "{'expiryDate':1,'underlying':1,'nseTimeStamp':1}",
 unique = true
 
-        )
+        ),
+        @CompoundIndex(
+                name = "uniq_expiry_underlying_timestamp",
+                def = "{'expiryDate':1,'underlying':1,'snapshotTimestamp':1}",
+                unique = true
+
+        ),
+                @CompoundIndex(
+                        name = "underlying_expiry_snapshot_idx",
+                        def = "{'underlying':1,'expiryDate':1,'snapshotTimestamp':-1}"
+                ),
+                @CompoundIndex(
+                        name = "underlying_expiry_nse_idx",
+                        def = "{'underlying':1,'expiryDate':1,'nseTimestamp':-1}"
+                )
 
         })
 public class ChainSnapshot {
@@ -41,7 +56,7 @@ public class ChainSnapshot {
 
     private Double strikePrice;
 
-    private String nseTimestamp;
+    private LocalDateTime nseTimestamp;
 
     private OptionLeg CE;
 

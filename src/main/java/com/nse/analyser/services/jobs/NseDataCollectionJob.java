@@ -1,8 +1,11 @@
 package com.nse.analyser.services.jobs;
 
+import com.nse.analyser.dtos.nseResponse.DataFillRecord;
 import com.nse.analyser.enums.TimeOfDay;
 import com.nse.analyser.models.holidayInfo.Holiday;
 import com.nse.analyser.models.holidayInfo.HolidayList;
+import com.nse.analyser.services.impl.ChainSnapshotServiceImpl;
+import com.nse.analyser.utils.DateTimeFormatters;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DuplicateKeyException;
 import com.mongodb.MongoBulkWriteException;
@@ -17,11 +20,14 @@ import com.nse.analyser.repositories.NseSnapshotRepository;
 import com.nse.analyser.services.impl.ModelService;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -34,6 +40,9 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.springframework.data.mongodb.core.query.Query;
 
+import static com.nse.analyser.utils.DateTimeFormatters.IST;
+import static com.nse.analyser.utils.DateTimeFormatters.expiryDateFormatter;
+
 @Service
 @Slf4j
 @AllArgsConstructor
@@ -43,15 +52,16 @@ public class NseDataCollectionJob {
     private final SnapshotIdGenerator snapshotIdGenerator;
     private final MongoTemplate mongoTemplate;
 
+    private final ChainSnapshotServiceImpl chainSnapshotServiceImpl;
     public Map<InstrumentType, Map<String, List<String>>> findNfoExpires(){
         Map<InstrumentType, Map<String, List<String>>> symbolsAndExpires = new HashMap<>();
         Query queryForIndices = new Query();
-        queryForIndices.addCriteria(Criteria.where("date").is(LocalDate.now()));
+        queryForIndices.addCriteria(Criteria.where("date").is(LocalDate.now(IST)));
         queryForIndices.addCriteria(Criteria.where("instrumentType").is(InstrumentType.INDEX));
         Optional<SymbolsAndExpiry> resultForIndices = mongoTemplate.find(queryForIndices, SymbolsAndExpiry.class, CollectionNames.NSE_INDEX_EXPIRES).stream().findFirst();
         resultForIndices.ifPresent(symbolsAndExpiry -> symbolsAndExpires.put(InstrumentType.INDEX, symbolsAndExpiry.getSymbolsAndExpiry()));
         Query queryForStocks = new Query();
-        queryForStocks.addCriteria(Criteria.where("date").is(LocalDate.now()));
+        queryForStocks.addCriteria(Criteria.where("date").is(LocalDate.now(IST)));
         queryForStocks.addCriteria(Criteria.where("instrumentType").is(InstrumentType.EQUITY));
         Optional<SymbolsAndExpiry> stocksResults = mongoTemplate.find(queryForStocks, SymbolsAndExpiry.class, CollectionNames.NSE_EQUITY_EXPIRES).stream().findFirst();
         stocksResults.ifPresent(symbolsAndExpiry -> symbolsAndExpires.put(InstrumentType.EQUITY, symbolsAndExpiry.getSymbolsAndExpiry()));
@@ -63,14 +73,14 @@ public class NseDataCollectionJob {
                 case INDEX -> {
                     log.info("Saving into Mongo for instrumentType: {} symbolsAndExpiry: {}",instrumentTypeMapEntry.getKey(),instrumentTypeMapEntry.getValue());
                     SymbolsAndExpiry symbolsAndExpiry = new SymbolsAndExpiry();
-                    symbolsAndExpiry.setDate(LocalDate.now());
+                    symbolsAndExpiry.setDate(LocalDate.now(IST));
                     symbolsAndExpiry.setInstrumentType(InstrumentType.INDEX);
                     symbolsAndExpiry.setSymbolsAndExpiry(instrumentTypeMapEntry.getValue());
                     mongoTemplate.save(symbolsAndExpiry, CollectionNames.NSE_INDEX_EXPIRES);
                 }
                 case EQUITY -> {
                     SymbolsAndExpiry symbolsAndExpiry = new SymbolsAndExpiry();
-                    symbolsAndExpiry.setDate(LocalDate.now());
+                    symbolsAndExpiry.setDate(LocalDate.now(IST));
                     symbolsAndExpiry.setInstrumentType(InstrumentType.EQUITY);
                     symbolsAndExpiry.setSymbolsAndExpiry(instrumentTypeMapEntry.getValue());
                     mongoTemplate.save(symbolsAndExpiry, CollectionNames.NSE_EQUITY_EXPIRES);
@@ -80,7 +90,8 @@ public class NseDataCollectionJob {
     }
 
 
-    public int fillData(String symbol, String expiryDate, InstrumentType instrumentType){
+    public DataFillRecord fillData(String symbol, String expiryDate, InstrumentType instrumentType){
+
         List<ChainSnapshot> snapshots =
                 modelService.getChainSnapshots(
                         instrumentType,
@@ -94,9 +105,12 @@ public class NseDataCollectionJob {
                         : CollectionNames.NSE_STOCK_SNAPSHOT;
 
         final int batchSize = 500;
-
+        LocalDateTime nseTimeStamp = null;
         for (int i = 0; i < snapshots.size(); i += batchSize) {
 
+            if(i==1){
+                nseTimeStamp = snapshots.get(i).getNseTimestamp();
+            }
             int end = Math.min(i + batchSize, snapshots.size());
 
             List<ChainSnapshot> batch =
@@ -118,19 +132,23 @@ public class NseDataCollectionJob {
             }
 
         }
-        return snapshots.size();
+
+//        return snapshots.size();
+        return new DataFillRecord(snapshots.size(),nseTimeStamp);
 //       mongoTemplate.save(snapshots, instrumentType == InstrumentType.INDEX ? CollectionNames.NSE_INDEX_SNAPSHOT : CollectionNames.NSE_STOCK_SNAPSHOT).size();
     }
-    public void fillDataForNifty(String symbol, String expiryDate, DataCategory table, InstrumentType instrumentType) {
-        log.info("Starting to Fill data for symbol: {} expiry: {}",symbol,expiryDate);
-        List<ChainSnapshot> snapshots =
-                modelService.getChainSnapshots(
-                        instrumentType,
-                        symbol,
-                        expiryDate
-                );
+    public DataFillRecord fillDataIntoClickhouseEveryMinute(String symbol, String expiryDate, InstrumentType instrumentType) {
+        log.info("Starting to Fill data for clickHouse symbol: {} expiry: {}",symbol,expiryDate);
 
-        snapshots = filterAroundAtm(snapshots);
+        List<ChainSnapshot> snapshots =
+//                chainSnapshotServiceImpl.findLatestCapturedSnapshot_soFar(symbol,expiryDate,instrumentType);
+                chainSnapshotServiceImpl.findToday_inserted_snapshots(
+                symbol,
+                expiryDate,
+                instrumentType
+        );
+
+        snapshots = filterAroundAtm(snapshots,instrumentType == InstrumentType.EQUITY ? 10:25,instrumentType == InstrumentType.EQUITY ? 10:25);
 
         List<OptionLeg> optionLegs = snapshots.stream()
                 .flatMap(snapshot -> Stream.of(
@@ -145,8 +163,6 @@ public class NseDataCollectionJob {
                         snapshotIdGenerator.generate(
                                 snapshot.getUnderlying(),
                                 snapshot.getExpiryDate(),
-//                                snapshot.getStrikePrice(),
-//                                snapshot.getOptionType(),
                                 snapshot.getNseTimestamp()
                         )
                 ));
@@ -157,11 +173,44 @@ public class NseDataCollectionJob {
                 optionLegs.stream()
                 .filter(s -> !existingIds.contains(s.getId()))
                 .toList();
-        nseSnapshotRepository.saveAll(newSnapshots,table.name());
-        if(optionLegs.isEmpty()) return;
+        nseSnapshotRepository.saveAll(newSnapshots,"1m");
+        if(optionLegs.isEmpty()) return null;
         nseSnapshotRepository.insertKeys(List.of(optionLegs.getFirst()));
         log.info("Completed saving data into 1m table for symbol: {} expiry: {}",symbol,expiryDate);
+//        return newSnapshots.size();
+        return new DataFillRecord(newSnapshots.size(),snapshots.isEmpty() ? null : snapshots.getFirst().getNseTimestamp());
     }
+
+    private List<ChainSnapshot> filterAroundAtm(List<ChainSnapshot> snapshots,
+                                                int up,
+                                                int down) {
+
+        List<ChainSnapshot> sorted = snapshots.stream()
+                .filter(s -> s.getCE() != null)
+                .sorted(Comparator.comparingDouble(
+                        s -> s.getCE().getStrikePrice()))
+                .toList();
+
+        int atmIndex = -1;
+
+        for (int i = 0; i < sorted.size(); i++) {
+            if (sorted.get(i).getCE().getOptionRank() == OptionRank.ATM) {
+                atmIndex = i;
+                break;
+            }
+        }
+
+        if (atmIndex == -1) {
+            log.warn("No ATM strike found");
+            return Collections.emptyList();
+        }
+
+        int from = Math.max(0, atmIndex - down);
+        int to = Math.min(sorted.size(), atmIndex + up + 1);
+
+        return sorted.subList(from, to);
+    }
+
     private List<ChainSnapshot> filterAroundAtm(List<ChainSnapshot> snapshots) {
 
         if(snapshots == null || snapshots.isEmpty()) return Collections.emptyList();
@@ -195,7 +244,7 @@ public class NseDataCollectionJob {
 
     public List<LocalDate> findNseHolidays(){
         Query query = new Query();
-        query.addCriteria(Criteria.where("year").is(String.valueOf(LocalDate.now().getYear())));
+        query.addCriteria(Criteria.where("year").is(String.valueOf(LocalDate.now(IST).getYear())));
         Optional<HolidayList> first = mongoTemplate.find(query, HolidayList.class ,CollectionNames.NSE_TRADING_HOLIDAYS).stream().findAny();
         if(first.isPresent()){
             List<Holiday> holidays = first.get().getHolidays();
@@ -209,9 +258,85 @@ public class NseDataCollectionJob {
     public void saveNseHolidays(List<Holiday> nseHolidays){
         log.info("Saving Holidays to DB");
         HolidayList holidayList = new HolidayList();
-        holidayList.setYear(String.valueOf(LocalDate.now().getYear()));
+        holidayList.setYear(String.valueOf(LocalDate.now(IST).getYear()));
         holidayList.setHolidays(nseHolidays);
         mongoTemplate.save(holidayList, CollectionNames.NSE_TRADING_HOLIDAYS);
         log.info("Saved Holidays to DB");
+    }
+
+
+    public List<ChainSnapshot> findAllSnapshots(
+            String underlying,
+            LocalDate expiryDate,
+            InstrumentType instrumentType) {
+
+        Query query = new Query();
+
+        query.addCriteria(
+                Criteria.where("underlying").is(underlying)
+        );
+
+        query.addCriteria(
+                Criteria.where("expiryDate")
+                        .is(expiryDate.format(expiryDateFormatter))
+        );
+
+        query.with(Sort.by("nseTimestamp"));
+
+        return mongoTemplate.find(
+                query,
+                ChainSnapshot.class
+        );
+    }
+    public Optional<ChainSnapshot> findSnapshotAtTime(
+            String underlying,
+            LocalDate expiryDate,
+            LocalDateTime timestamp) {
+
+        Query query = new Query();
+
+        query.addCriteria(
+                Criteria.where("underlying").is(underlying)
+        );
+
+        query.addCriteria(
+                Criteria.where("expiryDate")
+                        .is(expiryDate.format(expiryDateFormatter))
+        );
+
+        query.addCriteria(
+                Criteria.where("nseTimestamp").is(timestamp)
+        );
+
+        return mongoTemplate.find(query, ChainSnapshot.class)
+                .stream()
+                .findFirst();
+    }
+
+    public Optional<ChainSnapshot> findFirstSnapshotOfTheDay(
+            String underlying,
+            LocalDate expiryDate) {
+
+        Query query = new Query();
+
+        query.addCriteria(
+                Criteria.where("underlying").is(underlying)
+        );
+
+        query.addCriteria(
+                Criteria.where("expiryDate")
+                        .is(expiryDate.format(expiryDateFormatter))
+        );
+
+        query.with(
+                Sort.by(Sort.Direction.ASC,
+                        "nseTimestamp")
+        );
+
+        query.limit(1);
+
+        return mongoTemplate.find(query, ChainSnapshot.class)
+                .stream()
+                .findFirst();
     }
 }

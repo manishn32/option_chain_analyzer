@@ -1,5 +1,7 @@
 package com.nse.analyser.services.jobs.automated.jobAdministration;
 
+import com.nse.analyser.dtos.nseResponse.DataFillRecord;
+import com.nse.analyser.enums.DataBaseChoice;
 import com.nse.analyser.enums.InstrumentType;
 import com.nse.analyser.enums.TimeOfDay;
 import com.nse.analyser.models.jobStatus.CollectionState;
@@ -11,6 +13,8 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
+import static com.nse.analyser.utils.DateTimeFormatters.IST;
+
 @Service
 @RequiredArgsConstructor
 public class CollectionStateService {
@@ -21,25 +25,59 @@ public class CollectionStateService {
             String symbol,
             String expiry,
             InstrumentType instrumentType,
-            TimeOfDay timeOfDay
+            TimeOfDay timeOfDay,
+            DataBaseChoice dataBaseChoice,
+            String intradayKey
     ) {
 
-        CollectionState state =
+        CollectionState state = timeOfDay != TimeOfDay.DURING_DAY ?
                 repository
-                        .findBySymbolAndExpiryDateAndBusinessDate(
+                        .findBySymbolAndExpiryDateAndBusinessDateAndTimeOfDayAndDataBaseChoice(
                                 symbol,
                                 expiry,
-                                LocalDate.now(),
-                                timeOfDay
+                                LocalDate.now(IST),
+                                timeOfDay,
+                                dataBaseChoice
                         )
                         .orElse(CollectionState.builder()
                                 .symbol(symbol)
                                 .timeOfDay(timeOfDay)
                                 .expiryDate(expiry)
                                 .instrumentType(instrumentType)
-                                .businessDate(LocalDate.now())
+                                .businessDate(LocalDate.now(IST))
                                 .attemptCount(0)
-                                .build());
+                                .dataBaseChoice(dataBaseChoice)
+                                .build())
+                :
+                repository.findBySymbolAndExpiryDateAndDataBaseChoiceAndIntradayKey(
+                        symbol,
+                        expiry,
+                        dataBaseChoice,
+                        intradayKey
+                ).orElse(CollectionState.builder()
+                        .symbol(symbol)
+                        .timeOfDay(timeOfDay)
+                        .expiryDate(expiry)
+                        .instrumentType(instrumentType)
+                        .businessDate(LocalDate.now(IST))
+                        .attemptCount(0)
+                        .dataBaseChoice(dataBaseChoice)
+                        .intradayKey(intradayKey)
+                        .build())
+
+                ;
+
+        if(timeOfDay == TimeOfDay.DURING_DAY){
+            state = CollectionState.builder()
+                    .symbol(symbol)
+                    .timeOfDay(timeOfDay)
+                    .expiryDate(expiry)
+                    .instrumentType(instrumentType)
+                    .businessDate(LocalDate.now(IST))
+                    .dataBaseChoice(dataBaseChoice)
+                    .attemptCount(0)
+                    .build();
+        }
 
         state.setAttemptCount(
                 state.getAttemptCount() + 1
@@ -63,16 +101,19 @@ public class CollectionStateService {
     public void markSuccess(
             String symbol,
             String expiry,
-            long records,
-            TimeOfDay timeOfDay
+            DataFillRecord records,
+            TimeOfDay timeOfDay,
+            DataBaseChoice dataBaseChoice,
+            String intradayKey
     ) {
-
+        if(timeOfDay != TimeOfDay.DURING_DAY){
         repository
-                .findBySymbolAndExpiryDateAndBusinessDate(
+                .findBySymbolAndExpiryDateAndBusinessDateAndTimeOfDayAndDataBaseChoice(
                         symbol,
                         expiry,
-                        LocalDate.now(),
-                        timeOfDay
+                        LocalDate.now(IST),
+                        timeOfDay,
+                        dataBaseChoice
                 )
                 .ifPresent(state -> {
 
@@ -80,7 +121,9 @@ public class CollectionStateService {
                             CollectionStatus.SUCCESS
                     );
 
-                    state.setRecordsCollected(records);
+                    state.setRecordsCollected((long)records.totalRecords());
+
+                    state.setNseTimestamp(records.nseTimestamp());
 
                     state.setCompletedAt(
                             LocalDateTime.now()
@@ -88,21 +131,46 @@ public class CollectionStateService {
 
                     repository.save(state);
                 });
+
+        }else {
+            repository.findBySymbolAndExpiryDateAndDataBaseChoiceAndIntradayKey(
+                    symbol,
+                    expiry,
+                    dataBaseChoice,
+                    intradayKey
+            )
+                    .ifPresent(state -> {
+
+                        state.setStatus(
+                                CollectionStatus.SUCCESS
+                        );
+
+                        state.setRecordsCollected((long)records.totalRecords());
+                        state.setNseTimestamp(records.nseTimestamp());
+                        state.setCompletedAt(
+                                LocalDateTime.now()
+                        );
+
+                        repository.save(state);
+                    });
+        }
     }
 
     public void markFailure(
             String symbol,
             String expiry,
             Exception exception,
-            TimeOfDay timeOfDay
+            TimeOfDay timeOfDay,
+            DataBaseChoice dataBaseChoice
     ) {
 
         repository
-                .findBySymbolAndExpiryDateAndBusinessDate(
+                .findBySymbolAndExpiryDateAndBusinessDateAndTimeOfDayAndDataBaseChoice(
                         symbol,
                         expiry,
-                        LocalDate.now(),
-                        timeOfDay
+                        LocalDate.now(IST),
+                        timeOfDay,
+                        dataBaseChoice
                 )
                 .ifPresent(state -> {
 

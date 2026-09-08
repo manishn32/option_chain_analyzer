@@ -118,7 +118,7 @@ public class ModelService {
 
         snapshot.setStrikePrice(strikeData.getStrikePrice());
 
-        snapshot.setNseTimestamp(nseTimestamp);
+        snapshot.setNseTimestamp(LocalDateTime.parse(nseTimestamp, DateTimeFormatters.nseTimestampFormatter));
         snapshot.setCE(
                 toOptionLeg(strikeData.getCe(),
                         OptionType.CE,

@@ -33,10 +33,10 @@ resilience4j:
     instances:
       nseApi:
         slidingWindowType: COUNT_BASED
-        slidingWindowSize: 20
-        minimumNumberOfCalls: 10
-        failureRateThreshold: 50
-        slowCallRateThreshold: 50
+        slidingWindowSize: 5
+        minimumNumberOfCalls: 2
+        failureRateThreshold: 4
+        slowCallRateThreshold: 8
         waitDurationInOpenState: 30s
         permittedNumberOfCallsInHalfOpenState: 2
       projectionService:
