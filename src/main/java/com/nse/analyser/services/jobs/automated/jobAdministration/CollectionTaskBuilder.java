@@ -73,8 +73,8 @@ public class CollectionTaskBuilder {
                                 intraDayKey
 
                         )
-                        &&
-                                (symbol.equalsIgnoreCase("NIFTY") && dataBaseChoice == DataBaseChoice.MongoDB && timeOfDay == TimeOfDay.DURING_DAY)
+//                        &&
+//                                (symbol.equalsIgnoreCase("NIFTY") && dataBaseChoice == DataBaseChoice.MongoDB && timeOfDay == TimeOfDay.DURING_DAY)
                         ) {
 
                             tasks.add(

@@ -6,12 +6,15 @@ import com.nse.analyser.enums.TimeOfDay;
 import com.nse.analyser.services.jobs.NseDataCollectionJob;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ThreadPoolExecutor;
+import org.slf4j.MDC;
 
 import static com.nse.analyser.utils.DateTimeFormatters.expiryDateFormatter;
 
@@ -20,34 +23,99 @@ import static com.nse.analyser.utils.DateTimeFormatters.expiryDateFormatter;
 @Slf4j
 public class CollectionExecutorService {
 
-    private final ExecutorService executorService;
-
+    @Qualifier("mongoCollectionExecutor")
+    private final ThreadPoolExecutor mongoExecutor;
+    @Qualifier("clickHouseCollectionExecutor")
+    private final ThreadPoolExecutor clickHouseExecutor;
     private final CollectionStateService stateService;
-
     private final NseDataCollectionJob job;
 
+    public void execute_advanced(
+            List<CollectionTask> tasks,
+            TimeOfDay timeOfDay,
+            DataBaseChoice databaseChoice
+    ) {
+
+        ExecutorService executor =
+                databaseChoice == DataBaseChoice.MongoDB
+                        ? mongoExecutor
+                        : clickHouseExecutor;
+
+        tasks.forEach(task ->
+                CompletableFuture.runAsync(
+                        () -> process(
+                                task,
+                                timeOfDay,
+                                databaseChoice
+                        ),
+                        executor
+                ).exceptionally(ex->{
+                    log.error("Unexpected async error", ex);
+                    return null;
+                })
+        );
+    }
     public void execute(
             List<CollectionTask> tasks,
             TimeOfDay timeOfDay,
-            DataBaseChoice dataBaseChoice
+            DataBaseChoice databaseChoice
     ) {
 
-        List<CompletableFuture<Void>> futures =
-                tasks.stream()
-                        .map(task ->
-                                CompletableFuture.runAsync(
-                                        () -> process(task,timeOfDay,dataBaseChoice),
-                                        executorService
-                                )
-                        )
-                        .toList();
+        ExecutorService executor =
+                databaseChoice == DataBaseChoice.MongoDB
+                        ? mongoExecutor
+                        : clickHouseExecutor;
 
-        CompletableFuture.allOf(
-                futures.toArray(
-                        new CompletableFuture[0]
+        log.info(
+                "Submitting {} tasks to {} executor",
+                tasks.size(),
+                databaseChoice
+        );
+
+//        tasks.forEach(task ->
+//                CompletableFuture.runAsync(
+//                        () -> process(task, timeOfDay, databaseChoice),
+//                        executor
+//                ).exceptionally(ex -> {
+//                    log.error("Unexpected async error", ex);
+//                    return null;
+//                })
+//        );
+
+        tasks.forEach(task ->
+                executor.submit(
+                        () -> process(
+                                task,
+                                timeOfDay,
+                                databaseChoice
+                        )
                 )
-        ).join();
+        );
+
     }
+
+//    public void execute_old_next_level_thing(
+//            List<CollectionTask> tasks,
+//            TimeOfDay timeOfDay,
+//            DataBaseChoice dataBaseChoice
+//    ) {
+//
+//        List<CompletableFuture<Void>> futures =
+//                tasks.stream()
+//                        .map(task ->
+//                                CompletableFuture.runAsync(
+//                                        () -> process(task,timeOfDay,dataBaseChoice),
+//                                        executorService
+//                                )
+//                        )
+//                        .toList();
+//
+//        CompletableFuture.allOf(
+//                futures.toArray(
+//                        new CompletableFuture[0]
+//                )
+//        ).join();
+//    }
 
     private void process(
             CollectionTask task,
@@ -56,7 +124,8 @@ public class CollectionExecutorService {
     ) {
 
         try {
-
+            MDC.put("symbol", task.getSymbol());
+            MDC.put("db", dataBaseChoice.name());
             stateService.markStarted(
                     task.getSymbol(),
                     task.getExpiryDate(),
@@ -82,13 +151,21 @@ public class CollectionExecutorService {
 
         } catch(Exception exception){
 
+//            log.error(
+//                    "Failed Symbol: {} expiring {} with error {} run time flag {} to {}",
+//                    task.getSymbol(),
+//                    task.getExpiryDate(),
+//                    exception,
+//                    timeOfDay,
+//                    dataBaseChoice
+//            );
             log.error(
-                    "Failed Symbol: {} expiring {} with error {} run time flag {} to {}",
+                    "Failed Symbol {} Expiry {} TimeOfDay {} Database {}",
                     task.getSymbol(),
                     task.getExpiryDate(),
-                    exception,
                     timeOfDay,
-                    dataBaseChoice
+                    dataBaseChoice,
+                    exception
             );
 
             stateService.markFailure(
@@ -98,6 +175,8 @@ public class CollectionExecutorService {
                     task.getTimeOfDay(),
                     dataBaseChoice
             );
+        }finally {
+            MDC.clear();
         }
     }
 }

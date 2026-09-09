@@ -7,11 +7,9 @@ spring:
     username: username
     password: userpassword
     driver-class-name: com.clickhouse.jdbc.ClickHouseDriver
-
   data:
     mongodb:
       uri: mongodb://localhost:27017/analyser
-
 logging:
   level:
     com.nse.analyser: DEBUG
@@ -108,3 +106,12 @@ resilience4j:
         retryExceptions:
           - java.sql.SQLException
 
+#C:/Users/SESA796586/Downloads/nse_data_collection/mongo = host path
+#/data/db = container path
+
+
+#CLICKHOUSE_USER
+#CLICKHOUSE_PASSWORD
+#VOLUMES
+#C:/Users/SESA796586/Downloads/nse_data_collection/clickHouse = host path
+#/var/lib/clickhouse = container path

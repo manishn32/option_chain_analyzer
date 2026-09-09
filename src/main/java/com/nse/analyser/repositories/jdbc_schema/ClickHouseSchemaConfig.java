@@ -72,10 +72,10 @@ public class ClickHouseSchemaConfig {
                         "mv_nse_snapshot_1W",
                         "1 WEEK");
 
-                createTimeframe(
-                        "nse_snapshot_1M",
-                        "mv_nse_snapshot_1M",
-                        "1 MONTH");
+//                createTimeframe(
+//                        "nse_snapshot_1M",
+//                        "mv_nse_snapshot_1M",
+//                        "1 MONTH");
             };
         }
 

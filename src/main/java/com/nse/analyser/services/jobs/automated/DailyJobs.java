@@ -51,10 +51,13 @@ public class DailyJobs {
 
     private void mapTradingHolidays() {
         log.info("Mapping NSE holidays");
-        List<LocalDate> nseHolidays = nseDataCollectionJob.findNseHolidays();
-        if(!nseHolidays.isEmpty()){
+        List<LocalDate> nseHolidays =
+                nseDataCollectionJob.findNseHolidays();
+        if(nseHolidays == null || !nseHolidays.isEmpty()){
             log.info("Holidays populated from DB");
-            holidayDates = new HashSet<>(nseHolidays);
+            if(nseHolidays !=null) {
+                holidayDates = new HashSet<>(nseHolidays);
+            }
         }
 
         if(holidayDates == null || holidayDates.isEmpty()){
@@ -224,7 +227,8 @@ public class DailyJobs {
         executeNseDataCollection(TimeOfDay.PRE_OPEN);
     }
 
-    @Scheduled(cron = "0 50 8 * * MON-FRI", zone = "Asia/Kolkata")
+//    @Scheduled(cron = "0 50 8 * * MON-FRI", zone = "Asia/Kolkata")
+    @Scheduled(cron = "0 * * * * *", zone = "Asia/Kolkata")
     public void previousDay() {
         log.info("Collecting previous day data for all symbols and indices");
         executeNseDataCollection(TimeOfDay.PREVIOUS_DAY);

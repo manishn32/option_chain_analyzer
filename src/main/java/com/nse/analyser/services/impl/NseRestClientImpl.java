@@ -1,6 +1,7 @@
 package com.nse.analyser.services.impl;
 
 
+import com.nse.analyser.config.collectionJob.NseRequestThrottle;
 import com.nse.analyser.constants.NseConstants;
 import com.nse.analyser.exceptions.NseForbiddenException;
 import com.nse.analyser.exceptions.NseSessionExpiredException;
@@ -18,12 +19,12 @@ import org.springframework.web.client.RestClientResponseException;
 @RequiredArgsConstructor
 @Slf4j
 public class NseRestClientImpl implements NseRestClient {
-
+    private final NseRequestThrottle nseRequestThrottle;
     private final NseSessionManager sessionManager;
-
+//    @Override
     @RateLimiter(name = "nseApi")
     @CircuitBreaker(name = "nseApi", fallbackMethod = "fallback")
-    public <T> T get(
+    public <T> T get_wasWorkingGreat(
             String url,
             Class<T> responseType) {
 
@@ -44,6 +45,28 @@ public class NseRestClientImpl implements NseRestClient {
                     responseType);
         }
     }
+        @Override
+        @RateLimiter(name = "nseApi")
+        @CircuitBreaker(name = "nseApi", fallbackMethod = "fallback")
+        public <T> T get(String url, Class<T> responseType) {
+
+            return nseRequestThrottle.execute(() -> {
+
+                try {
+
+                    ensureSession();
+
+                    return execute(url, responseType);
+
+                } catch (NseSessionExpiredException ex) {
+
+                    sessionManager.refreshSession();
+
+                    return execute(url, responseType);
+                }
+            });
+        }
+
 
     private void ensureSession() {
         if(sessionManager.expired()){
