@@ -19,16 +19,22 @@ import org.slf4j.MDC;
 import static com.nse.analyser.utils.DateTimeFormatters.expiryDateFormatter;
 
 @Service
-@RequiredArgsConstructor
+//@RequiredArgsConstructor
 @Slf4j
 public class CollectionExecutorService {
 
-    @Qualifier("mongoCollectionExecutor")
+
     private final ThreadPoolExecutor mongoExecutor;
-    @Qualifier("clickHouseCollectionExecutor")
     private final ThreadPoolExecutor clickHouseExecutor;
     private final CollectionStateService stateService;
     private final NseDataCollectionJob job;
+
+    public CollectionExecutorService(@Qualifier("mongoCollectionExecutor")ThreadPoolExecutor mongoExecutor,@Qualifier("clickHouseCollectionExecutor") ThreadPoolExecutor clickHouseExecutor, CollectionStateService stateService, NseDataCollectionJob job) {
+        this.mongoExecutor = mongoExecutor;
+        this.clickHouseExecutor = clickHouseExecutor;
+        this.stateService = stateService;
+        this.job = job;
+    }
 
     public void execute_advanced(
             List<CollectionTask> tasks,
@@ -94,28 +100,33 @@ public class CollectionExecutorService {
 
     }
 
-//    public void execute_old_next_level_thing(
-//            List<CollectionTask> tasks,
-//            TimeOfDay timeOfDay,
-//            DataBaseChoice dataBaseChoice
-//    ) {
-//
-//        List<CompletableFuture<Void>> futures =
-//                tasks.stream()
-//                        .map(task ->
-//                                CompletableFuture.runAsync(
-//                                        () -> process(task,timeOfDay,dataBaseChoice),
-//                                        executorService
-//                                )
-//                        )
-//                        .toList();
-//
-//        CompletableFuture.allOf(
-//                futures.toArray(
-//                        new CompletableFuture[0]
-//                )
-//        ).join();
-//    }
+    public void execute_pakka_working(
+            List<CollectionTask> tasks,
+            TimeOfDay timeOfDay,
+            DataBaseChoice dataBaseChoice
+    ) {
+
+        ExecutorService executor =
+                dataBaseChoice == DataBaseChoice.MongoDB
+                        ? mongoExecutor
+                        : clickHouseExecutor;
+
+        List<CompletableFuture<Void>> futures =
+                tasks.stream()
+                        .map(task ->
+                                CompletableFuture.runAsync(
+                                        () -> process(task,timeOfDay,dataBaseChoice),
+                                        executor
+                                )
+                        )
+                        .toList();
+
+        CompletableFuture.allOf(
+                futures.toArray(
+                        new CompletableFuture[0]
+                )
+        ).join();
+    }
 
     private void process(
             CollectionTask task,
@@ -137,8 +148,8 @@ public class CollectionExecutorService {
 
 
             DataFillRecord records = dataBaseChoice == DataBaseChoice.MongoDB ?
-                    job.fillData(task.getSymbol(), task.getExpiryDate(), task.getInstrumentType()) :
-                    job.fillDataIntoClickhouseEveryMinute(task.getSymbol(), task.getExpiryDate(), task.getInstrumentType());
+                    job.fillData(task.getSymbol(), task.getExpiryDate(), task.getInstrumentType(),task.getIntradayKey(),timeOfDay) :
+                    job.fillDataIntoClickhouseEveryMinute(task.getSymbol(), task.getExpiryDate(), task.getInstrumentType(),timeOfDay);
 
             stateService.markSuccess(
                     task.getSymbol(),
@@ -146,7 +157,8 @@ public class CollectionExecutorService {
                     records,
                     task.getTimeOfDay(),
                     dataBaseChoice,
-                    task.getIntradayKey()
+                    task.getIntradayKey(),
+                    task.getInstrumentType()
             );
 
         } catch(Exception exception){
@@ -173,7 +185,9 @@ public class CollectionExecutorService {
                     task.getExpiryDate(),
                     exception,
                     task.getTimeOfDay(),
-                    dataBaseChoice
+                    dataBaseChoice,
+                    task.getIntradayKey(),
+                    task.getInstrumentType()
             );
         }finally {
             MDC.clear();

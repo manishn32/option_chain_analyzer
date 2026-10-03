@@ -9,6 +9,7 @@ import com.nse.analyser.services.NseRestClient;
 import com.nse.analyser.services.NseSessionManager;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
+import io.github.resilience4j.retry.annotation.Retry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
@@ -48,6 +49,7 @@ public class NseRestClientImpl implements NseRestClient {
         @Override
         @RateLimiter(name = "nseApi")
         @CircuitBreaker(name = "nseApi", fallbackMethod = "fallback")
+        @Retry(name = "nseApi")
         public <T> T get(String url, Class<T> responseType) {
 
             return nseRequestThrottle.execute(() -> {

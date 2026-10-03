@@ -21,6 +21,8 @@ import com.nse.analyser.services.impl.ModelService;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.mongodb.core.BulkOperations;
+import org.springframework.data.mongodb.core.FindAndReplaceOptions;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.stereotype.Service;
@@ -90,7 +92,7 @@ public class NseDataCollectionJob {
     }
 
 
-    public DataFillRecord fillData(String symbol, String expiryDate, InstrumentType instrumentType){
+    public DataFillRecord fillData(String symbol, String expiryDate, InstrumentType instrumentType, String intradayKey, TimeOfDay timeOfDay){
 
         List<ChainSnapshot> snapshots =
                 modelService.getChainSnapshots(
@@ -103,31 +105,95 @@ public class NseDataCollectionJob {
                 instrumentType == InstrumentType.INDEX
                         ? CollectionNames.NSE_INDEX_SNAPSHOT
                         : CollectionNames.NSE_STOCK_SNAPSHOT;
-
-        final int batchSize = 500;
         LocalDateTime nseTimeStamp = null;
+        final int batchSize = 500;
         for (int i = 0; i < snapshots.size(); i += batchSize) {
+            /**
+             *   strikeData.getCe().getUnderlying()
+             * //                        + "_"
+             * //                        + strikeData.getCe().getExpiryDate()
+             * //                        + "_"
+             * //                        + nseTimestamp
+             * //                        + "_"
+             * //                        + strikeData.getStrikePrice()
+             * */
+            nseTimeStamp = snapshots.get(i).getNseTimestamp();
+//            if(timeOfDay != TimeOfDay.DURING_DAY){
+//                snapshots.get(i).setId(
+//
+//                        symbol
+//                                + "_"
+//                                + nseTimeStamp
+//                                + "_"
+//                                + snapshots.get(i).getStrikePrice()
+////                        snapshotIdGenerator.generate(symbol,LocalDate.parse(expiryDate,expiryDateFormatter),nseTimeStamp)
+//
+//                );
+//            }else{
+//                snapshots.get(i).setId(intradayKey);
+//            }
 
-            if(i==1){
-                nseTimeStamp = snapshots.get(i).getNseTimestamp();
-            }
             int end = Math.min(i + batchSize, snapshots.size());
 
             List<ChainSnapshot> batch =
                     snapshots.subList(i, end);
+
+            for (int j = i; j < end; j++) {
+
+                ChainSnapshot snapshot = snapshots.get(j);
+
+                if(timeOfDay != TimeOfDay.DURING_DAY){
+////                        snapshotIdGenerator.generate(symbol,LocalDate.parse(expiryDate,expiryDateFormatter),nseTimeStamp)
+                    snapshot.setId(
+                            symbol + "_" +
+                                    snapshot.getNseTimestamp() + "_" +
+                                    snapshot.getStrikePrice()
+                    );
+                }
+                else{
+                    snapshot.setId(intradayKey);
+                }
+            }
             try {
-                mongoTemplate.insert(batch, collectionName);
-                log.info("Saved into Mongo for symbol: {} expiry: {} ",symbol,expiryDate);
+                BulkOperations bulkOps =
+                        mongoTemplate.bulkOps(
+                                BulkOperations.BulkMode.UNORDERED,
+                                ChainSnapshot.class,
+                                collectionName
+                        );
+
+                for (ChainSnapshot snapshot : batch) {
+
+                    Query query =
+                            Query.query(
+                                    Criteria.where("_id")
+                                            .is(snapshot.getId())
+                            );
+
+                    bulkOps.replaceOne(
+                            query,
+                            snapshot,
+                            FindAndReplaceOptions.options().upsert()
+                    );
+                }
+
+                bulkOps.execute();
+//                mongoTemplate.upsert(batch, collectionName);
+                log.info("Saved into Mongo for symbol: {} expiry: {} and collectin name {}",symbol,expiryDate,collectionName);
             }
             catch (DuplicateKeyException dup){
-                log.info("Data already present in mongoDB for symbol : {} and expiry {}",symbol,expiryDate);
+                log.info("Data already present in mongoDB for symbol : {} and expiry {} with Nse Timestamp = {}",symbol,expiryDate,nseTimeStamp);
+                log.debug("Duplicate key found for symbol {} with key {} ", snapshots.getFirst().getUnderlying(), snapshots.getFirst().getId());
+                throw dup;
             }
             catch (DataAccessException exp){
                     log.error("Writing failed in mongoDB for symbol : {} and expiry {} with message:{}",symbol,expiryDate,exp.getMessage());
+                throw exp;
             }
             catch (Exception ex){
                 log.error("Actual exception class = {}", ex.getClass().getName(), ex);
                 log.error("Exception class = {}", ex.getClass().getName(), ex);
+                throw ex;
 //                log.error("Unexpected exception with Mongo bulk writes : {}",ex.getMessage());
             }
 
@@ -137,18 +203,17 @@ public class NseDataCollectionJob {
         return new DataFillRecord(snapshots.size(),nseTimeStamp);
 //       mongoTemplate.save(snapshots, instrumentType == InstrumentType.INDEX ? CollectionNames.NSE_INDEX_SNAPSHOT : CollectionNames.NSE_STOCK_SNAPSHOT).size();
     }
-    public DataFillRecord fillDataIntoClickhouseEveryMinute(String symbol, String expiryDate, InstrumentType instrumentType) {
+    public DataFillRecord fillDataIntoClickhouseEveryMinute(String symbol, String expiryDate, InstrumentType instrumentType, TimeOfDay timeOfDay) {
         log.info("Starting to Fill data for clickHouse symbol: {} expiry: {}",symbol,expiryDate);
 
         List<ChainSnapshot> snapshots =
-//                chainSnapshotServiceImpl.findLatestCapturedSnapshot_soFar(symbol,expiryDate,instrumentType);
-                chainSnapshotServiceImpl.findToday_inserted_snapshots(
-                symbol,
-                expiryDate,
-                instrumentType
-        );
+                chainSnapshotServiceImpl.findLatestCapturedSnapshot_soFar(symbol,expiryDate,instrumentType);
+//                chainSnapshotServiceImpl.findToday_inserted_snapshots(
+//                symbol,
+//                expiryDate,
+//                instrumentType        );
 
-        snapshots = filterAroundAtm(snapshots,instrumentType == InstrumentType.EQUITY ? 10:25,instrumentType == InstrumentType.EQUITY ? 10:25);
+        snapshots = filterAroundAtm(snapshots,instrumentType == InstrumentType.EQUITY ? 10:15,instrumentType == InstrumentType.EQUITY ? 10:15);
 
         List<OptionLeg> optionLegs = snapshots.stream()
                 .flatMap(snapshot -> Stream.of(
@@ -157,24 +222,27 @@ public class NseDataCollectionJob {
                 ))
                 .filter(Objects::nonNull)
                 .toList();
-
+        if(optionLegs.isEmpty()) throw new RuntimeException("Empty data after filtering for ATM strikes for symbol: " + symbol + " expiry: " + expiryDate);
         optionLegs.forEach(snapshot ->
                 snapshot.setId(
                         snapshotIdGenerator.generate(
                                 snapshot.getUnderlying(),
                                 snapshot.getExpiryDate(),
-                                snapshot.getNseTimestamp()
+                                snapshot.getNseTimestamp(),
+                                snapshot.getOptionType().name()
                         )
                 ));
         Set<String> existingIds =
                 nseSnapshotRepository.findExistingIds(optionLegs.stream().map(OptionLeg::getId).toList());
-
+        if(existingIds.isEmpty()){
+            log.info("No existing ids found in clickHouse ID table for symbol: {} expiry: {}. Saving all data.",symbol,expiryDate);
+        }
         List<OptionLeg> newSnapshots =
                 optionLegs.stream()
                 .filter(s -> !existingIds.contains(s.getId()))
                 .toList();
-        nseSnapshotRepository.saveAll(newSnapshots,"1m");
-        if(optionLegs.isEmpty()) return null;
+        if(newSnapshots.isEmpty()) throw new RuntimeException("Empty options leg after filtering existing ids.");
+        nseSnapshotRepository.saveAll(newSnapshots,timeOfDay == TimeOfDay.PREVIOUS_DAY ? "1D":"1m");
         nseSnapshotRepository.insertKeys(List.of(optionLegs.getFirst()));
         log.info("Completed saving data into 1m table for symbol: {} expiry: {}",symbol,expiryDate);
 //        return newSnapshots.size();
@@ -202,7 +270,7 @@ public class NseDataCollectionJob {
 
         if (atmIndex == -1) {
             log.warn("No ATM strike found");
-            return Collections.emptyList();
+            throw new RuntimeException("No ATM strike found in the provided snapshots.");
         }
 
         int from = Math.max(0, atmIndex - down);

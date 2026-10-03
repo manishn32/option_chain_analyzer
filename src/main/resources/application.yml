@@ -115,3 +115,5 @@ resilience4j:
 #VOLUMES
 #C:/Users/SESA796586/Downloads/nse_data_collection/clickHouse = host path
 #/var/lib/clickhouse = container path
+
+#logs dir with key : LOG_HOME = C:\Users\SESA796586\Downloads\nse_data_collection\logs

@@ -8,7 +8,7 @@ import java.util.concurrent.Semaphore;
 @Component
 public class NseRequestThrottle {
 
-    private final Semaphore semaphore = new Semaphore(2, true);
+    private final Semaphore semaphore = new Semaphore(3, true);
 
     public <T> T execute(Callable<T> task) {
 
@@ -18,7 +18,7 @@ public class NseRequestThrottle {
             try {
                 return task.call();
             } finally {
-                Thread.sleep(655); // 1 second gap between requests
+                Thread.sleep(500); // 1 second gap between requests
                 semaphore.release();
             }
 

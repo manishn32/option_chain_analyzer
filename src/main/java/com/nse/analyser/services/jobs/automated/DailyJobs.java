@@ -133,27 +133,43 @@ public class DailyJobs {
 //    }
 
     @Scheduled(cron = "0 * * * * *", zone = "Asia/Kolkata")
-    public void scheduledJob_forAllSymbols_duringDay_toClickHouse() {
+    public void executeClickHouseDuringDay(){
+        LocalTime now = LocalTime.now(IST);
+//          Use this to control market timing injection
+        if (now.isBefore(LocalTime.of(9, 10)) ||
+                now.isAfter(LocalTime.of(15, 35)) || isHoliday()) {
+            return;
+        }
+
+        scheduledJob_forAllSymbols_duringDay_toClickHouse(TimeOfDay.DURING_DAY);
+    }
+
+    @Scheduled(cron = "0 * * * * *", zone = "Asia/Kolkata")
+    public void executeClickHouseAfterDay(){
+        scheduledJob_forAllSymbols_duringDay_toClickHouse(TimeOfDay.PREVIOUS_DAY);
+    }
+    public void scheduledJob_forAllSymbols_duringDay_toClickHouse(TimeOfDay timeOfDayType) {
         LocalDateTime timeOfDay = LocalDateTime.now(IST);
-        if(mapOfSymbolToExpiry == null){
+        if(mapOfSymbolToExpiry == null || mapOfSymbolToExpiry.isEmpty()){
+            log.info("No symbols and expiry dates mapped yet");
             return;
         }
 
         List<CollectionTask> tasks =
-                taskBuilder.buildTasks(mapOfSymbolToExpiry,TimeOfDay.DURING_DAY,DataBaseChoice.ClickHouse,timeOfDay
+                taskBuilder.buildTasks(mapOfSymbolToExpiry,timeOfDayType,DataBaseChoice.ClickHouse,timeOfDay
                 );
 
         if(tasks.isEmpty()) {
 
             log.info(
-                    "No pending collection tasks."
+                    "No pending collection tasks - clickHouse."
             );
 
             return;
         }
 
         log.info(
-                "Starting {} collection tasks",
+                "Starting {} collection tasks - clickHouse",
                 tasks.size()
         );
 
@@ -180,12 +196,13 @@ public class DailyJobs {
 //    })
     public void executeNseDataCollection(TimeOfDay timeOfDay) {
         LocalDateTime session = LocalDateTime.now(IST);
-        if (isHoliday()) {
+        if (isHoliday() && timeOfDay != TimeOfDay.PREVIOUS_DAY) {
             log.info("Holiday detected. Skipping collection.");
             return;
         }
 
-        if (mapOfSymbolToExpiry == null) {
+        if (mapOfSymbolToExpiry == null || mapOfSymbolToExpiry.isEmpty()) {
+            log.info("No symbols and expiry dates mapped yet. Skipping collection.");
             return;
         }
 
@@ -244,7 +261,7 @@ public class DailyJobs {
     public void duringDayMongoDBSave() {
 
         LocalTime now = LocalTime.now(IST);
-
+//          Use this to control market timing injection
         if (now.isBefore(LocalTime.of(9, 10)) ||
                     now.isAfter(LocalTime.of(15, 35)) || isHoliday()) {
             return;

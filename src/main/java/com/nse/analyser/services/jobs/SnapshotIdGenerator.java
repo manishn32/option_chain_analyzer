@@ -12,12 +12,15 @@ public class SnapshotIdGenerator {
     public String generate(
             String underlying,
             LocalDate expiryDate,
-            LocalDateTime nseTimestamp) {
+            LocalDateTime nseTimestamp,
+            String ceOrPe
+            ) {
 
         String source =
-                underlying + "|" +
+                        underlying + "|" +
                         expiryDate + "|" +
-                        nseTimestamp;
+                        nseTimestamp+ "|" +
+                        ceOrPe;
 
         return DigestUtils.sha256Hex(source);
     }

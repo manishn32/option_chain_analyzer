@@ -29,13 +29,13 @@ unique = true
         ),
         @CompoundIndex(
                 name = "uniq_expiry_underlying_timestamp",
-                def = "{'expiryDate':1,'underlying':1,'snapshotTimestamp':1}",
+                def = "{'expiryDate':1,'underlying':1,'snapshotTime':1}",
                 unique = true
 
         ),
                 @CompoundIndex(
                         name = "underlying_expiry_snapshot_idx",
-                        def = "{'underlying':1,'expiryDate':1,'snapshotTimestamp':-1}"
+                        def = "{'underlying':1,'expiryDate':1,'snapshotTime':-1}"
                 ),
                 @CompoundIndex(
                         name = "underlying_expiry_nse_idx",

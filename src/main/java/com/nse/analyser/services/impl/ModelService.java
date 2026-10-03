@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static com.nse.analyser.services.impl.OptionMetricsService.determineOptionActivity;
 import static com.nse.analyser.utils.NumberUtils.*;
@@ -91,15 +92,15 @@ public class ModelService {
         }
         ChainSnapshot snapshot = new ChainSnapshot();
 
-        snapshot.setId(
-                strikeData.getCe().getUnderlying()
-                        + "_"
-                        + strikeData.getCe().getExpiryDate()
-                        + "_"
-                        + nseTimestamp
-                        + "_"
-                        + strikeData.getStrikePrice()
-        );
+//        snapshot.setId(
+//                strikeData.getCe().getUnderlying()
+//                        + "_"
+//                        + strikeData.getCe().getExpiryDate()
+//                        + "_"
+//                        + nseTimestamp
+//                        + "_"
+//                        + strikeData.getStrikePrice()
+//        );
         snapshot.setUnderlying(
                 strikeData.getCe() != null
                         ? strikeData.getCe().getUnderlying()
@@ -251,9 +252,15 @@ public class ModelService {
     }
 
     public Map<InstrumentType, Map<String, List<String>>> mapIndicesAndExpiry(){
-        Map<InstrumentType, Map<String, List<String>>> mapOfSymbolsToExpiryBoth = new HashMap<>();
-        Map<String, List<String>> mapOfSymbolsToExpiry = new HashMap<>();
+        Map<InstrumentType, Map<String, List<String>>> mapOfSymbolsToExpiryBoth = new ConcurrentHashMap<>();
+        Map<String, List<String>> mapOfSymbolsToExpiry = new ConcurrentHashMap<>();
         TradableFnO_Contracts tradableFnOContracts = getTradableFnOContracts();
+        Map<String, List<String>> mapOfIndexesToExpiry = new ConcurrentHashMap<>();
+        for (String index : tradableFnOContracts.getIndices()){
+            List<String> strings = nseDataRetrievalService.fetchExpirationDates(index);
+            if(!strings.isEmpty()) mapOfIndexesToExpiry.put(index, strings);
+        }
+        mapOfSymbolsToExpiryBoth.put(InstrumentType.INDEX,mapOfIndexesToExpiry);
         for(String index : tradableFnOContracts.getStocks()){
             List<String> strings = nseDataRetrievalService.fetchExpirationDates(index);
             if(!strings.isEmpty()){
@@ -261,12 +268,6 @@ public class ModelService {
         }
         mapOfSymbolsToExpiryBoth.put(InstrumentType.EQUITY, mapOfSymbolsToExpiry);
 
-        Map<String, List<String>> mapOfIndexesToExpiry = new HashMap<>();
-        for (String index : tradableFnOContracts.getIndices()){
-            List<String> strings = nseDataRetrievalService.fetchExpirationDates(index);
-            if(!strings.isEmpty()) mapOfIndexesToExpiry.put(index, strings);
-        }
-        mapOfSymbolsToExpiryBoth.put(InstrumentType.INDEX,mapOfIndexesToExpiry);
         return mapOfSymbolsToExpiryBoth;
     }
 

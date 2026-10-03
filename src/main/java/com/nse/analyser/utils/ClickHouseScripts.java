@@ -15,8 +15,8 @@ public class ClickHouseScripts {
                     ORDER BY id;
                     """;
 
-    public static final String CREATE_1M_TABLE= """
-                CREATE TABLE IF NOT EXISTS option_chain.nse_snapshot_1m
+    public static final String CREATE_TABLE= """
+                CREATE TABLE IF NOT EXISTS option_chain.nse_snapshot_%s
                 (
                     underlying String,
                     underlying_value Float64,
@@ -52,9 +52,9 @@ public class ClickHouseScripts {
                 (
                     underlying,
                     expiry_date,
+                    nse_timestamp,
                     strike_price,
-                    option_type,
-                    nse_timestamp
+                    option_type
                 )
                 """;
 
@@ -62,8 +62,12 @@ public class ClickHouseScripts {
         CREATE TABLE IF NOT EXISTS option_chain.%s
         (
             underlying String,
-            rank LowCardinality(String),
-
+            symbol_open AggregateFunction(argMin, Float64, DateTime64(3,'Asia/Kolkata')),
+            symbol_high AggregateFunction(max, Float64),
+            symbol_low AggregateFunction(min, Float64),
+            symbol_close AggregateFunction(argMax, Float64, DateTime64(3,'Asia/Kolkata')),
+            open_rank AggregateFunction(argMin, String, DateTime64(3,'Asia/Kolkata')),
+            close_rank AggregateFunction(argMax, String, DateTime64(3,'Asia/Kolkata')),
             strike_price Float64,
             option_type LowCardinality(String),
             expiry_date Date,
@@ -115,7 +119,6 @@ public class ClickHouseScripts {
         ORDER BY
         (
             underlying,
-            rank,
             expiry_date,
             strike_price,
             option_type,
@@ -129,7 +132,12 @@ public class ClickHouseScripts {
         AS
         SELECT
             underlying,
-            rank,
+            argMinState(underlying_value, nse_timestamp) AS symbol_open,
+            maxState(underlying_value) AS symbol_high,
+            minState(underlying_value) AS symbol_low,
+            argMaxState(underlying_value, nse_timestamp) AS symbol_close,
+            argMinState(rank,nse_timestamp) AS open_rank,
+            argMaxState(rank,nse_timestamp) AS close_rank,
             strike_price,
             option_type,
             expiry_date,
@@ -183,12 +191,76 @@ public class ClickHouseScripts {
 
         GROUP BY
             underlying,
-            rank,
             strike_price,
             option_type,
             expiry_date,
             bucket_start
         """;
+
+
+    public static final String CREATE_VIEW_FROM_AGG_MERGE_TREE = """
+            CREATE VIEW IF NOT EXISTS option_chain.view_table_%s AS
+            SELECT
+            
+                underlying,
+                argMinMerge(symbol_open) open,
+                maxMerge(symbol_high) high,
+                minMerge(symbol_low) low,
+                argMaxMerge(symbol_close) close,
+                argMinMerge(open_rank) AS open_rank,
+                argMaxMerge(close_rank) AS close_rank,
+                strike_price,
+                option_type,
+                expiry_date,
+                bucket_start,
+            
+                argMinMerge(open_oi) open_oi,
+                maxMerge(high_oi) high_oi,
+                minMerge(low_oi) low_oi,
+                argMaxMerge(close_oi) close_oi,
+            
+                argMinMerge(open_change_oi) open_change_oi,
+                maxMerge(high_change_oi) high_change_oi,
+                minMerge(low_change_oi) low_change_oi,
+                argMaxMerge(close_change_oi) close_change_oi,
+            
+                argMinMerge(open_ltp) open_ltp,
+                maxMerge(high_ltp) high_ltp,
+                minMerge(low_ltp) low_ltp,
+                argMaxMerge(close_ltp) close_ltp,
+            
+                argMinMerge(open_iv) open_iv,
+                maxMerge(high_iv) high_iv,
+                minMerge(low_iv) low_iv,
+                argMaxMerge(close_iv) close_iv,
+            
+                argMinMerge(open_obi) open_obi,
+                maxMerge(high_obi) high_obi,
+                minMerge(low_obi) low_obi,
+                argMaxMerge(close_obi) close_obi,
+            
+                argMinMerge(open_oi_concentration) open_oi_concentration,
+                maxMerge(high_oi_concentration) high_oi_concentration,
+                minMerge(low_oi_concentration) low_oi_concentration,
+                argMaxMerge(close_oi_concentration) close_oi_concentration,
+            
+                argMinMerge(open_volume_concentration) open_volume_concentration,
+                maxMerge(high_volume_concentration) high_volume_concentration,
+                minMerge(low_volume_concentration) low_volume_concentration,
+                argMaxMerge(close_volume_concentration) close_volume_concentration,
+                argMinMerge(open_volume) open_volume,
+                maxMerge(high_volume) high_volume,
+                minMerge(low_volume) low_volume,
+                argMaxMerge(close_volume) close_volume
+            
+            FROM option_chain.%s
+            GROUP BY
+                underlying,
+                strike_price,
+                option_type,
+                expiry_date,
+                bucket_start
+            """;
 
     public static final String SNAPSHOT_TABLE_INSERT = """
                 INSERT INTO option_chain.nse_snapshot_%s
@@ -217,48 +289,6 @@ public class ClickHouseScripts {
                 )
                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 """;
-
-    public static final String CREATE_VIEW_FROM_AGG_MERGE_TREE = """
-            CREATE VIEW option_chain.view_table_%s AS
-            SELECT
-            
-                underlying,
-                rank,
-                strike_price,
-                option_type,
-                expiry_date,
-                bucket_start,
-            
-                argMinMerge(open_oi) open_oi,
-                maxMerge(high_oi) high_oi,
-                minMerge(low_oi) low_oi,
-                argMaxMerge(close_oi) close_oi,
-            
-                argMinMerge(open_ltp) open_ltp,
-                maxMerge(high_ltp) high_ltp,
-                minMerge(low_ltp) low_ltp,
-                argMaxMerge(close_ltp) close_ltp,
-            
-                argMinMerge(open_iv) open_iv,
-                maxMerge(high_iv) high_iv,
-                minMerge(low_iv) low_iv,
-                argMaxMerge(close_iv) close_iv,
-            
-                argMinMerge(open_volume) open_volume,
-                maxMerge(high_volume) high_volume,
-                minMerge(low_volume) low_volume,
-                argMaxMerge(close_volume) close_volume
-            
-            FROM option_chain.nse_snapshot_%s
-            GROUP BY
-                underlying,
-                rank,
-                strike_price,
-                option_type,
-                expiry_date,
-                bucket_start
-            """;
-
     public static final String CREATE_YESTERDAY_COMP_TABLE = """
             CREATE VIEW option_chain.vw_day_over_day
             AS
@@ -283,4 +313,73 @@ public class ClickHouseScripts {
                 ORDER BY bucket_start
             )
             """;
+
+    public static final String MV_TEMPLATE_MONTHLY = """
+        CREATE MATERIALIZED VIEW IF NOT EXISTS option_chain.%s
+        TO option_chain.%s
+        AS
+        SELECT
+            underlying,
+            argMinState(underlying_value, nse_timestamp) AS symbol_open,
+            maxState(underlying_value) AS symbol_high,
+            minState(underlying_value) AS symbol_low,
+            argMaxState(underlying_value, nse_timestamp) AS symbol_close,
+            argMinState(rank,nse_timestamp) AS open_rank,
+            argMaxState(rank,nse_timestamp) AS close_rank,
+            strike_price,
+            option_type,
+            expiry_date,
+
+            toStartOfMonth(nse_timestamp) AS bucket_start,
+
+            argMinState(open_interest, nse_timestamp) AS open_oi,
+            maxState(open_interest) AS high_oi,
+            minState(open_interest) AS low_oi,
+            argMaxState(open_interest, nse_timestamp) AS close_oi,
+
+            argMinState(change_in_open_interest, nse_timestamp) AS open_change_oi,
+            maxState(change_in_open_interest) AS high_change_oi,
+            minState(change_in_open_interest) AS low_change_oi,
+            argMaxState(change_in_open_interest, nse_timestamp) AS close_change_oi,
+
+            argMinState(ltp, nse_timestamp) AS open_ltp,
+            maxState(ltp) AS high_ltp,
+            minState(ltp) AS low_ltp,
+            argMaxState(ltp, nse_timestamp) AS close_ltp,
+
+            argMinState(implied_volatility, nse_timestamp) AS open_iv,
+            maxState(implied_volatility) AS high_iv,
+            minState(implied_volatility) AS low_iv,
+            argMaxState(implied_volatility, nse_timestamp) AS close_iv,
+
+            argMinState(order_book_imbalance, nse_timestamp) AS open_obi,
+            maxState(order_book_imbalance) AS high_obi,
+            minState(order_book_imbalance) AS low_obi,
+            argMaxState(order_book_imbalance, nse_timestamp) AS close_obi,
+
+            argMinState(oi_concentration, nse_timestamp) AS open_oi_concentration,
+            maxState(oi_concentration) AS high_oi_concentration,
+            minState(oi_concentration) AS low_oi_concentration,
+            argMaxState(oi_concentration, nse_timestamp) AS close_oi_concentration,
+
+            argMinState(volume_concentration, nse_timestamp) AS open_volume_concentration,
+            maxState(volume_concentration) AS high_volume_concentration,
+            minState(volume_concentration) AS low_volume_concentration,
+            argMaxState(volume_concentration, nse_timestamp) AS close_volume_concentration,
+
+            argMinState(traded_volume, nse_timestamp) AS open_volume,
+            maxState(traded_volume) AS high_volume,
+            minState(traded_volume) AS low_volume,
+            argMaxState(traded_volume, nse_timestamp) AS close_volume
+
+        FROM option_chain.nse_snapshot_1m
+
+        GROUP BY
+            underlying,
+            strike_price,
+            option_type,
+            expiry_date,
+            bucket_start
+        """;
+
 }

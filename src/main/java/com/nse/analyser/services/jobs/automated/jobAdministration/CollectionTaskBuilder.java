@@ -70,11 +70,7 @@ public class CollectionTaskBuilder {
                                 expiry,
                                 timeOfDay,
                                 dataBaseChoice,
-                                intraDayKey
-
-                        )
-//                        &&
-//                                (symbol.equalsIgnoreCase("NIFTY") && dataBaseChoice == DataBaseChoice.MongoDB && timeOfDay == TimeOfDay.DURING_DAY)
+                                intraDayKey)
                         ) {
 
                             tasks.add(
