@@ -4,8 +4,8 @@ spring:
 
   datasource:
     url: jdbc:clickhouse://localhost:8123
-    username: username
-    password: userpassword
+    username: ${DOCKER_CLICKHOUSE_USER_VALUE}
+    password: ${DOCKER_CLICKHOUSE_PASSWORD_VALUE}
     driver-class-name: com.clickhouse.jdbc.ClickHouseDriver
   data:
     mongodb:
