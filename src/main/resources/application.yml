@@ -106,14 +106,16 @@ resilience4j:
         retryExceptions:
           - java.sql.SQLException
 
-#C:/Users/SESA796586/Downloads/nse_data_collection/mongo = host path
+# Volume and initial variables for containers
+#Mongo
+#C:/Users/manis/Downloads/nse_data_collection/mongo = host path
 #/data/db = container path
 
 
 #CLICKHOUSE_USER
 #CLICKHOUSE_PASSWORD
 #VOLUMES
-#C:/Users/SESA796586/Downloads/nse_data_collection/clickHouse = host path
+#C:/Users/manis/Downloads/nse_data_collection/clickHouse = host path
 #/var/lib/clickhouse = container path
 
-#logs dir with key : LOG_HOME = C:\Users\SESA796586\Downloads\nse_data_collection\logs
+#logs dir with key : LOG_HOME = C:\Users\manis\Downloads\nse_data_collection\logs

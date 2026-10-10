@@ -1,5 +1,6 @@
 package com.nse.analyser.models.jobStatus;
 
+
 import com.nse.analyser.enums.DataBaseChoice;
 import com.nse.analyser.enums.InstrumentType;
 import com.nse.analyser.enums.TimeOfDay;
@@ -7,7 +8,7 @@ import lombok.Builder;
 import lombok.Data;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
-import tools.jackson.databind.type.CollectionType;
+
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -26,7 +27,7 @@ public class CollectionState {
 
     private InstrumentType instrumentType;
 
-    private CollectionType collectionType;
+//    private CollectionType collectionType;
 
     private LocalDate businessDate;
 

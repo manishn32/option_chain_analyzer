@@ -3,13 +3,14 @@ FYERS GIT HUB REPO : https://github.com/FyersDev/fyers-java-sdk.git
 FYERS SDK CURRENT VERSION : 2.1.0
 
 
-Install Fyers into .m2 using below command.
-PS C:\Users\SESA796586\Downloads\analyser\optionsAnalyser> mvn install:install-file `
->> -Dfile="C:\Users\SESA796586\Downloads\analyser\optionsAnalyser\fyersjavasdk-1.0.jar" `
->> -DgroupId=com.tts.in `
->> -DartifactId=fyersjavasdk `
->> -Dversion=1.0 `
->> -Dpackaging=jar
+Install Fyers into .m2 using below command in terminal.
+mvn org.apache.maven.plugins:maven-install-plugin:3.1.4:install-file `
+-Dfile="D:\OptionAnalyzerApplication\option_chain_analyzer\fyersjavasdk-1.0.jar" `
+-DgroupId=com `
+-DartifactId=fyersjavasdk `
+-Dversion=1 `
+-Dpackaging=jar `
+-DgeneratePom=true
 
 Dependency to Add in POM AFTER INSTALLING
 
