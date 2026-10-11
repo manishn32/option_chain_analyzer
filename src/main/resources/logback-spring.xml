@@ -3,6 +3,16 @@
 
     <timestamp key="startupTime" datePattern="yyyy-MMM-dd"/>
 
+    <springProperty
+            scope="context"
+            name="LOG_BACK_DIR"
+            source="LOG_BACK_DIR"/>
+
+    <springProperty
+            scope="context"
+            name="APPLICATION_LOG_LEVEL"
+            source="APPLICATION_LOG_LEVEL"/>
+
     <property name="LOG_HOME" value="${LOG_BACK_DIR}/${startupTime}"/>
 
     <appender name="CONSOLE"
@@ -17,7 +27,7 @@
     <appender name="FILE"
               class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>
-            ${LOG_HOME}/application.log
+            ${LOG_HOME}/analyzerApplication.log
         </file>
 
         <rollingPolicy
@@ -31,7 +41,7 @@
 
             <maxHistory>200</maxHistory>
 
-            <totalSizeCap>2GB</totalSizeCap>
+            <totalSizeCap>1GB</totalSizeCap>
 
         </rollingPolicy>
 
@@ -40,6 +50,8 @@
                 %d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n
             </pattern>
         </encoder>
+
+        <!-- <encoder class="net.logstash.logback.encoder.LogstashEncoder"/>  -->
 
     </appender>
 

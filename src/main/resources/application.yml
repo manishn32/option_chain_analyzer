@@ -120,4 +120,4 @@ resilience4j:
 #C:/Users/manis/Downloads/nse_data_collection/clickHouse = host path
 #/var/lib/clickhouse = container path
 
-#logs dir with key : LOG_HOME = C:\Users\manis\Downloads\nse_data_collection\logs
+#logs dir with key : LOG_HOME = C:/Users/manis/Downloads/analyserApplication/logs
