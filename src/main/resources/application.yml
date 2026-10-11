@@ -1,6 +1,8 @@
 spring:
   application:
     name: analyser
+  config:
+    import: optional:file:.env[.properties]
 
   datasource:
     url: jdbc:clickhouse://localhost:8123
