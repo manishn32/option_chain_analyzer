@@ -18,11 +18,11 @@ public class CollectionExecutorConfig {
     public ThreadPoolExecutor mongoCollectionExecutor() {
 
         return new ThreadPoolExecutor(
-                20,
-                40,
-                3,
+                2,
+                4,
+                1,
                 TimeUnit.MINUTES,
-                new LinkedBlockingQueue<>(10000),
+                new LinkedBlockingQueue<>(5000),
                 new ThreadFactoryBuilder()
                         .setNameFormat("mongo-%d")
                         .build(),
@@ -34,11 +34,11 @@ public class CollectionExecutorConfig {
     public ThreadPoolExecutor clickHouseCollectionExecutor() {
 
         return new ThreadPoolExecutor(
-                10,
-                20,
-                3,
+                2,
+                4,
+                1,
                 TimeUnit.MINUTES,
-                new LinkedBlockingQueue<>(5000),
+                new LinkedBlockingQueue<>(2500),
                 new ThreadFactoryBuilder()
                         .setNameFormat("clickhouse-%d")
                         .build(),

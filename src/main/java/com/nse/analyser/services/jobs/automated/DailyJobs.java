@@ -1,16 +1,17 @@
 package com.nse.analyser.services.jobs.automated;
 
-import com.nse.analyser.CustomCache;
 import com.nse.analyser.enums.DataBaseChoice;
 import com.nse.analyser.enums.InstrumentType;
 import com.nse.analyser.enums.TimeOfDay;
+import com.nse.analyser.marketData.dto.InstrumentDTO;
+import com.nse.analyser.marketData.dto.SymbolsAndExpiryDTO;
+import com.nse.analyser.marketData.service.FyersMarketDataClient;
 import com.nse.analyser.models.holidayInfo.Holiday;
 import com.nse.analyser.services.impl.ModelService;
 import com.nse.analyser.services.jobs.NseDataCollectionJob;
 import com.nse.analyser.services.jobs.automated.jobAdministration.CollectionExecutorService;
 import com.nse.analyser.services.jobs.automated.jobAdministration.CollectionTask;
 import com.nse.analyser.services.jobs.automated.jobAdministration.CollectionTaskBuilder;
-import com.nse.analyser.utils.DateTimeFormatters;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -22,10 +23,12 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 import static com.nse.analyser.utils.DateTimeFormatters.IST;
@@ -36,7 +39,8 @@ import static com.nse.analyser.utils.DateTimeFormatters.IST;
 public class DailyJobs {
     private final NseDataCollectionJob nseDataCollectionJob;
     private final ModelService modelService;
-    private Map<InstrumentType, Map<String, List<String>>> mapOfSymbolToExpiry;
+    private final Map<InstrumentType, Map<String, List<String>>> mapOfSymbolToExpiry = new ConcurrentHashMap<>();
+    private final FyersMarketDataClient fyersMarketDataClient;
 
     private final CollectionExecutorService collectionExecutorService;
     private final CollectionTaskBuilder taskBuilder;
@@ -68,18 +72,48 @@ public class DailyJobs {
     private void mapSymbolsAndExpiresForNSE() {
         log.info("Starting Data Collection Job and mapping Symbol and indices");
 
-        Map<InstrumentType, Map<String, List<String>>> nfoExpires = nseDataCollectionJob.findNfoExpires();
+//        Map<InstrumentType, Map<String, List<String>>> nfoExpires = nseDataCollectionJob.findNfoExpires();
+//
+//        if(!nfoExpires.isEmpty()){
+//            mapOfSymbolToExpiry = nfoExpires;
+//        }
 
-        if(!nfoExpires.isEmpty()){
-            mapOfSymbolToExpiry = nfoExpires;
-        }
-
-        if(mapOfSymbolToExpiry == null || mapOfSymbolToExpiry.isEmpty()){
-            mapOfSymbolToExpiry = modelService.mapIndicesAndExpiry();
-            nseDataCollectionJob.saveSymbolsAndExpires(mapOfSymbolToExpiry);
+        if(mapOfSymbolToExpiry.isEmpty()){
+            mapIndexAndExpiresFromFyers();
+            mapSymbolsAndExpiresFromFyers();
+//            mapOfSymbolToExpiry = modelService.mapIndicesAndExpiry();
+//            nseDataCollectionJob.saveSymbolsAndExpires(mapOfSymbolToExpiry);
         }
 //        log.debug("Map of Symbol to Expiry: {}", mapOfSymbolToExpiry);
         log.info("Completed mapping Symbols and expires");
+    }
+
+    private void mapIndexAndExpiresFromFyers(){
+        log.info("Gather Index and expires ");
+
+        List<InstrumentDTO> indexInstrumentsList = fyersMarketDataClient.getFnoInstruments("NSE",true);
+        List<String> listOfIndexUnderlying = indexInstrumentsList.stream().map(InstrumentDTO::getUnderlying).toList();
+        List<SymbolsAndExpiryDTO> indexAndExpires = fyersMarketDataClient.getIntrumentAndExpiries("NSE", listOfIndexUnderlying);
+                mapOfSymbolToExpiry.put(InstrumentType.INDEX,getMapped(indexAndExpires));
+    }
+
+    private void mapSymbolsAndExpiresFromFyers(){
+        log.info("Gather symbols and expires ");
+
+        List<InstrumentDTO> indexInstrumentsList = fyersMarketDataClient.getFnoInstruments("NSE",false);
+        List<String> listOfIndexUnderlying = indexInstrumentsList.stream().map(InstrumentDTO::getUnderlying).toList();
+        List<SymbolsAndExpiryDTO> indexAndExpires = fyersMarketDataClient.getIntrumentAndExpiries("NSE", listOfIndexUnderlying);
+        mapOfSymbolToExpiry.put(InstrumentType.EQUITY,getMapped(indexAndExpires));
+
+
+    }
+
+    private Map<String, List<String>> getMapped(List<SymbolsAndExpiryDTO> indexAndExpires) {
+     Map<String,List<String>> symbolToExpiry = new HashMap<>();
+        for (SymbolsAndExpiryDTO each : indexAndExpires){
+            symbolToExpiry.put(each.getSymbol(),each.getExpires().stream().map(LocalDate::toString).toList());
+     }
+        return symbolToExpiry;
     }
 
 //        @Scheduled(cron = "0 * * * * *", zone = "Asia/Kolkata")

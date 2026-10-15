@@ -36,31 +36,31 @@ public class CollectionExecutorService {
         this.job = job;
     }
 
-    public void execute_advanced(
-            List<CollectionTask> tasks,
-            TimeOfDay timeOfDay,
-            DataBaseChoice databaseChoice
-    ) {
-
-        ExecutorService executor =
-                databaseChoice == DataBaseChoice.MongoDB
-                        ? mongoExecutor
-                        : clickHouseExecutor;
-
-        tasks.forEach(task ->
-                CompletableFuture.runAsync(
-                        () -> process(
-                                task,
-                                timeOfDay,
-                                databaseChoice
-                        ),
-                        executor
-                ).exceptionally(ex->{
-                    log.error("Unexpected async error", ex);
-                    return null;
-                })
-        );
-    }
+//    public void execute_advanced(
+//            List<CollectionTask> tasks,
+//            TimeOfDay timeOfDay,
+//            DataBaseChoice databaseChoice
+//    ) {
+//
+//        ExecutorService executor =
+//                databaseChoice == DataBaseChoice.MongoDB
+//                        ? mongoExecutor
+//                        : clickHouseExecutor;
+//
+//        tasks.forEach(task ->
+//                CompletableFuture.runAsync(
+//                        () -> process(
+//                                task,
+//                                timeOfDay,
+//                                databaseChoice
+//                        ),
+//                        executor
+//                ).exceptionally(ex->{
+//                    log.error("Unexpected async error", ex);
+//                    return null;
+//                })
+//        );
+//    }
     public void execute(
             List<CollectionTask> tasks,
             TimeOfDay timeOfDay,

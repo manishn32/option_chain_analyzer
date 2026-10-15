@@ -108,6 +108,12 @@ resilience4j:
         retryExceptions:
           - java.sql.SQLException
 
+
+
+market-data:
+  host: ${FYERS_MARKET_DATA_HOST}
+  internal-api-key: ${FYERS_INTERNAL_API_KEY}
+
 # Volume and initial variables for containers
 #Mongo
 #C:/Users/manis/Downloads/nse_data_collection/mongo = host path
