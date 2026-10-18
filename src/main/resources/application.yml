@@ -5,10 +5,11 @@ spring:
     import: optional:file:.env[.properties]
 
   datasource:
-    url: jdbc:clickhouse://localhost:8123
+    url: jdbc:p6spy:clickhouse://localhost:8123
     username: ${DOCKER_CLICKHOUSE_USER_VALUE}
     password: ${DOCKER_CLICKHOUSE_PASSWORD_VALUE}
-    driver-class-name: com.clickhouse.jdbc.ClickHouseDriver
+#    driver-class-name: com.clickhouse.jdbc.ClickHouseDriver
+    driver-class-name: com.p6spy.engine.spy.P6SpyDriver
   data:
     mongodb:
       uri: mongodb://localhost:27017/analyser

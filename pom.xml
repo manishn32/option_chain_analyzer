@@ -71,7 +71,7 @@
 		<dependency>
 			<groupId>com.clickhouse</groupId>
 			<artifactId>clickhouse-jdbc</artifactId>
-			<version>0.9.1</version>
+				<version>0.9.1</version>
 		</dependency>
 
 		<dependency>
@@ -113,6 +113,12 @@
 			<groupId>net.logstash.logback</groupId>
 			<artifactId>logstash-logback-encoder</artifactId>
 			<version>8.1</version>
+		</dependency>
+
+		<dependency>
+			<groupId>p6spy</groupId>
+			<artifactId>p6spy</artifactId>
+			<version>3.9.1</version>
 		</dependency>
 
 
