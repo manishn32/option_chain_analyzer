@@ -133,3 +133,12 @@ market-data:
 #/var/lib/clickhouse = container path
 
 #logs dir with key : LOG_HOME = C:/Users/manis/Downloads/analyserApplication/logs
+
+
+ai:
+  ollama:
+    base-url: http://localhost:11434
+    model: qwen2.5:1.5b
+
+server:
+  port: 8097

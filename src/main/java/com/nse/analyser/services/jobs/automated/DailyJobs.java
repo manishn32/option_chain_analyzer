@@ -80,7 +80,7 @@ public class DailyJobs {
 
         if(mapOfSymbolToExpiry.isEmpty()){
             mapIndexAndExpiresFromFyers();
-//            mapSymbolsAndExpiresFromFyers();
+            mapSymbolsAndExpiresFromFyers();
 //            mapOfSymbolToExpiry = modelService.mapIndicesAndExpiry();
 //            nseDataCollectionJob.saveSymbolsAndExpires(mapOfSymbolToExpiry);
         }
@@ -93,9 +93,8 @@ public class DailyJobs {
 
         List<InstrumentDTO> indexInstrumentsList = fyersMarketDataClient.getFnoInstruments("NSE",true);
         List<String> listOfIndexUnderlying = indexInstrumentsList.stream().map(InstrumentDTO::getUnderlying).toList();
-        Map<String, String> reference = collectReferences(indexInstrumentsList);
         List<SymbolsAndExpiryDTO> indexAndExpires = fyersMarketDataClient.getIntrumentAndExpiries("NSE", listOfIndexUnderlying);
-                mapOfSymbolToExpiry.put(InstrumentType.INDEX,getMapped(indexAndExpires,reference));
+                mapOfSymbolToExpiry.put(InstrumentType.INDEX,getMapped(indexAndExpires));
     }
 
     private Map<String, String> collectReferences(List<InstrumentDTO> listOfIndexUnderlying) {
@@ -112,16 +111,15 @@ public class DailyJobs {
         List<InstrumentDTO> indexInstrumentsList = fyersMarketDataClient.getFnoInstruments("NSE",false);
         List<String> listOfIndexUnderlying = indexInstrumentsList.stream().map(InstrumentDTO::getUnderlying).toList();
         List<SymbolsAndExpiryDTO> indexAndExpires = fyersMarketDataClient.getIntrumentAndExpiries("NSE", listOfIndexUnderlying);
-        Map<String, String> reference = collectReferences(indexInstrumentsList);
-        mapOfSymbolToExpiry.put(InstrumentType.EQUITY,getMapped(indexAndExpires,reference));
+        mapOfSymbolToExpiry.put(InstrumentType.EQUITY,getMapped(indexAndExpires));
 
 
     }
 
-    private Map<String, List<Long>> getMapped(List<SymbolsAndExpiryDTO> indexAndExpires, Map<String, String> refernceMap) {
+    private Map<String, List<Long>> getMapped(List<SymbolsAndExpiryDTO> indexAndExpires) {
      Map<String,List<Long>> symbolToExpiry = new HashMap<>();
         for (SymbolsAndExpiryDTO each : indexAndExpires){
-            symbolToExpiry.put(refernceMap.get(each.getSymbol()),each.getExpires());
+            symbolToExpiry.put(each.getSymbol(),each.getExpires());
      }
         return symbolToExpiry;
     }
