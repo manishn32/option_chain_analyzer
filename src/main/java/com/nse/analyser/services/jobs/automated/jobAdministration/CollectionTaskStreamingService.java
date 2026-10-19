@@ -26,150 +26,150 @@ public class CollectionTaskStreamingService {
     private final NseDataRetrievalService nseDataRetrievalService;
     private final CollectionGuardService guardService;
 
-    public void streamCollectionTasks(
-            TradableFnO_Contracts contracts,
-            TimeOfDay timeOfDay,
-            DataBaseChoice dataBaseChoice,
-            LocalDateTime session,
-            Consumer<CollectionTask> consumer) {
+//    public void streamCollectionTasks(
+//            TradableFnO_Contracts contracts,
+//            TimeOfDay timeOfDay,
+//            DataBaseChoice dataBaseChoice,
+//            LocalDateTime session,
+//            Consumer<CollectionTask> consumer) {
+//
+//        LocalDate today = LocalDate.now(IST);
+//        LocalDate maxDate = today.plusMonths(3);
+//
+//        processSymbols(
+//                contracts.getIndices(),
+//                InstrumentType.INDEX,
+//                timeOfDay,
+//                dataBaseChoice,
+//                session,
+//                today,
+//                maxDate,
+//                consumer);
+//
+//        processSymbols(
+//                contracts.getStocks(),
+//                InstrumentType.EQUITY,
+//                timeOfDay,
+//                dataBaseChoice,
+//                session,
+//                today,
+//                maxDate,
+//                consumer);
+//    }
 
-        LocalDate today = LocalDate.now(IST);
-        LocalDate maxDate = today.plusMonths(3);
+//    private void processSymbols(
+//            List<String> symbols,
+//            InstrumentType instrumentType,
+//            TimeOfDay timeOfDay,
+//            DataBaseChoice dataBaseChoice,
+//            LocalDateTime session,
+//            LocalDate today,
+//            LocalDate maxDate,
+//            Consumer<CollectionTask> consumer) {
+//
+//        for (String symbol : symbols) {
+//
+//            try {
+//
+//                List<String> expiries =
+//                        nseDataRetrievalService
+//                                .fetchExpirationDates(symbol);
+//
+//                if (expiries == null || expiries.isEmpty()) {
+//                    continue;
+//                }
+//
+//                log.info(
+//                        "Found {} expiries for {}",
+//                        expiries.size(),
+//                        symbol);
+//
+//                for (String expiry : expiries) {
+//
+//                    createTaskIfEligible(
+//                            symbol,
+//                            expiry,
+//                            instrumentType,
+//                            timeOfDay,
+//                            dataBaseChoice,
+//                            session,
+//                            today,
+//                            maxDate,
+//                            consumer);
+//                }
+//
+//            } catch (Exception ex) {
+//
+//                log.error(
+//                        "Failed retrieving expiries for symbol {}",
+//                        symbol,
+//                        ex);
+//            }
+//        }
+//    }
 
-        processSymbols(
-                contracts.getIndices(),
-                InstrumentType.INDEX,
-                timeOfDay,
-                dataBaseChoice,
-                session,
-                today,
-                maxDate,
-                consumer);
-
-        processSymbols(
-                contracts.getStocks(),
-                InstrumentType.EQUITY,
-                timeOfDay,
-                dataBaseChoice,
-                session,
-                today,
-                maxDate,
-                consumer);
-    }
-
-    private void processSymbols(
-            List<String> symbols,
-            InstrumentType instrumentType,
-            TimeOfDay timeOfDay,
-            DataBaseChoice dataBaseChoice,
-            LocalDateTime session,
-            LocalDate today,
-            LocalDate maxDate,
-            Consumer<CollectionTask> consumer) {
-
-        for (String symbol : symbols) {
-
-            try {
-
-                List<String> expiries =
-                        nseDataRetrievalService
-                                .fetchExpirationDates(symbol);
-
-                if (expiries == null || expiries.isEmpty()) {
-                    continue;
-                }
-
-                log.info(
-                        "Found {} expiries for {}",
-                        expiries.size(),
-                        symbol);
-
-                for (String expiry : expiries) {
-
-                    createTaskIfEligible(
-                            symbol,
-                            expiry,
-                            instrumentType,
-                            timeOfDay,
-                            dataBaseChoice,
-                            session,
-                            today,
-                            maxDate,
-                            consumer);
-                }
-
-            } catch (Exception ex) {
-
-                log.error(
-                        "Failed retrieving expiries for symbol {}",
-                        symbol,
-                        ex);
-            }
-        }
-    }
-
-    private void createTaskIfEligible(
-            String symbol,
-            String expiry,
-            InstrumentType instrumentType,
-            TimeOfDay timeOfDay,
-            DataBaseChoice dataBaseChoice,
-            LocalDateTime session,
-            LocalDate today,
-            LocalDate maxDate,
-            Consumer<CollectionTask> consumer) {
-
-        try {
-
-            LocalDate expiryDate =
-                    LocalDate.parse(
-                            expiry,
-                            DateTimeFormatters.expiryDateFormatter);
-
-            if (expiryDate.isBefore(today)) {
-                return;
-            }
-
-            if (expiryDate.isAfter(maxDate)) {
-                return;
-            }
-
-            String intradayKey =
-                    symbol + "_"
-                            + expiry + "_"
-                            + dataBaseChoice.name() + "_"
-                            + session;
-
-            boolean shouldCollect =
-                    guardService.shouldCollect(
-                            symbol,
-                            expiry,
-                            timeOfDay,
-                            dataBaseChoice,
-                            intradayKey);
-
-            if (!shouldCollect) {
-                return;
-            }
-
-            CollectionTask task =
-                    CollectionTask.builder()
-                            .symbol(symbol)
-                            .expiryDate(expiry)
-                            .instrumentType(instrumentType)
-                            .intradayKey(intradayKey)
-                            .dataBaseChoice(dataBaseChoice)
-                            .build();
-
-            consumer.accept(task);
-
-        } catch (Exception ex) {
-
-            log.error(
-                    "Failed creating task for symbol {} expiry {}",
-                    symbol,
-                    expiry,
-                    ex);
-        }
-    }
+//    private void createTaskIfEligible(
+//            String symbol,
+//            Long expiry,
+//            InstrumentType instrumentType,
+//            TimeOfDay timeOfDay,
+//            DataBaseChoice dataBaseChoice,
+//            LocalDateTime session,
+//            LocalDate today,
+//            LocalDate maxDate,
+//            Consumer<CollectionTask> consumer) {
+//
+//        try {
+//
+//            LocalDate expiryDate =
+//                    LocalDate.parse(
+//                            expiry,
+//                            DateTimeFormatters.expiryDateFormatter);
+//
+//            if (expiryDate.isBefore(today)) {
+//                return;
+//            }
+//
+//            if (expiryDate.isAfter(maxDate)) {
+//                return;
+//            }
+//
+//            String intradayKey =
+//                    symbol + "_"
+//                            + expiry + "_"
+//                            + dataBaseChoice.name() + "_"
+//                            + session;
+//
+//            boolean shouldCollect =
+//                    guardService.shouldCollect(
+//                            symbol,
+//                            expiry,
+//                            timeOfDay,
+//                            dataBaseChoice,
+//                            intradayKey);
+//
+//            if (!shouldCollect) {
+//                return;
+//            }
+//
+//            CollectionTask task =
+//                    CollectionTask.builder()
+//                            .symbol(symbol)
+//                            .expiryDate(expiry)
+//                            .instrumentType(instrumentType)
+//                            .intradayKey(intradayKey)
+//                            .dataBaseChoice(dataBaseChoice)
+//                            .build();
+//
+//            consumer.accept(task);
+//
+//        } catch (Exception ex) {
+//
+//            log.error(
+//                    "Failed creating task for symbol {} expiry {}",
+//                    symbol,
+//                    expiry,
+//                    ex);
+//        }
+//    }
 }

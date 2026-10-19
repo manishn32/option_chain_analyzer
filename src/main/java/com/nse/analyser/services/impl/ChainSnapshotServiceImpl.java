@@ -305,7 +305,7 @@ public class ChainSnapshotServiceImpl {
 
     public List<ChainSnapshot> findLatestCapturedSnapshot_soFar(
             String underlying,
-            String expiryDate,
+            Long expiryDate,
             InstrumentType instrumentType) {
 
         Query query = new Query();

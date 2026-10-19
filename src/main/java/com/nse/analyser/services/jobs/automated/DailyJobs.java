@@ -39,7 +39,7 @@ import static com.nse.analyser.utils.DateTimeFormatters.IST;
 public class DailyJobs {
     private final NseDataCollectionJob nseDataCollectionJob;
     private final ModelService modelService;
-    private final Map<InstrumentType, Map<String, List<String>>> mapOfSymbolToExpiry = new ConcurrentHashMap<>();
+    private final Map<InstrumentType, Map<String, List<Long>>> mapOfSymbolToExpiry = new ConcurrentHashMap<>();
     private final FyersMarketDataClient fyersMarketDataClient;
 
     private final CollectionExecutorService collectionExecutorService;
@@ -80,7 +80,7 @@ public class DailyJobs {
 
         if(mapOfSymbolToExpiry.isEmpty()){
             mapIndexAndExpiresFromFyers();
-            mapSymbolsAndExpiresFromFyers();
+//            mapSymbolsAndExpiresFromFyers();
 //            mapOfSymbolToExpiry = modelService.mapIndicesAndExpiry();
 //            nseDataCollectionJob.saveSymbolsAndExpires(mapOfSymbolToExpiry);
         }
@@ -93,8 +93,17 @@ public class DailyJobs {
 
         List<InstrumentDTO> indexInstrumentsList = fyersMarketDataClient.getFnoInstruments("NSE",true);
         List<String> listOfIndexUnderlying = indexInstrumentsList.stream().map(InstrumentDTO::getUnderlying).toList();
+        Map<String, String> reference = collectReferences(indexInstrumentsList);
         List<SymbolsAndExpiryDTO> indexAndExpires = fyersMarketDataClient.getIntrumentAndExpiries("NSE", listOfIndexUnderlying);
-                mapOfSymbolToExpiry.put(InstrumentType.INDEX,getMapped(indexAndExpires));
+                mapOfSymbolToExpiry.put(InstrumentType.INDEX,getMapped(indexAndExpires,reference));
+    }
+
+    private Map<String, String> collectReferences(List<InstrumentDTO> listOfIndexUnderlying) {
+        Map<String, String> result = new HashMap<>();
+        for(InstrumentDTO instrumentDTO : listOfIndexUnderlying){
+            result.put(instrumentDTO.getUnderlying(),instrumentDTO.getSymbol());
+        }
+        return result;
     }
 
     private void mapSymbolsAndExpiresFromFyers(){
@@ -103,15 +112,16 @@ public class DailyJobs {
         List<InstrumentDTO> indexInstrumentsList = fyersMarketDataClient.getFnoInstruments("NSE",false);
         List<String> listOfIndexUnderlying = indexInstrumentsList.stream().map(InstrumentDTO::getUnderlying).toList();
         List<SymbolsAndExpiryDTO> indexAndExpires = fyersMarketDataClient.getIntrumentAndExpiries("NSE", listOfIndexUnderlying);
-        mapOfSymbolToExpiry.put(InstrumentType.EQUITY,getMapped(indexAndExpires));
+        Map<String, String> reference = collectReferences(indexInstrumentsList);
+        mapOfSymbolToExpiry.put(InstrumentType.EQUITY,getMapped(indexAndExpires,reference));
 
 
     }
 
-    private Map<String, List<String>> getMapped(List<SymbolsAndExpiryDTO> indexAndExpires) {
-     Map<String,List<String>> symbolToExpiry = new HashMap<>();
+    private Map<String, List<Long>> getMapped(List<SymbolsAndExpiryDTO> indexAndExpires, Map<String, String> refernceMap) {
+     Map<String,List<Long>> symbolToExpiry = new HashMap<>();
         for (SymbolsAndExpiryDTO each : indexAndExpires){
-            symbolToExpiry.put(each.getSymbol(),each.getExpires().stream().map(LocalDate::toString).toList());
+            symbolToExpiry.put(refernceMap.get(each.getSymbol()),each.getExpires());
      }
         return symbolToExpiry;
     }
@@ -166,7 +176,7 @@ public class DailyJobs {
 //        }
 //    }
 
-    @Scheduled(cron = "0 * * * * *", zone = "Asia/Kolkata")
+//    @Scheduled(cron = "0 * * * * *", zone = "Asia/Kolkata")
     public void executeClickHouseDuringDay(){
         LocalTime now = LocalTime.now(IST);
 //          Use this to control market timing injection
@@ -178,7 +188,7 @@ public class DailyJobs {
         scheduledJob_forAllSymbols_duringDay_toClickHouse(TimeOfDay.DURING_DAY);
     }
 
-    @Scheduled(cron = "0 * * * * *", zone = "Asia/Kolkata")
+//    @Scheduled(cron = "0 * * * * *", zone = "Asia/Kolkata")
     public void executeClickHouseAfterDay(){
         scheduledJob_forAllSymbols_duringDay_toClickHouse(TimeOfDay.PREVIOUS_DAY);
     }

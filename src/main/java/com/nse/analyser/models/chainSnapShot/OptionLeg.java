@@ -87,4 +87,6 @@ public class OptionLeg {
     private Instant snapshotTimestamp;
 
     private MarketDepth marketDepth;
+
+    private Long reference_oi;
 }

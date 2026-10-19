@@ -16,7 +16,7 @@ public class CollectionTask {
 
     private String symbol;
 
-    private String expiryDate;
+    private Long expiryDate;
 
     private InstrumentType instrumentType;
 

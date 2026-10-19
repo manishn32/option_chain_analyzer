@@ -18,8 +18,8 @@ public class CollectionExecutorConfig {
     public ThreadPoolExecutor mongoCollectionExecutor() {
 
         return new ThreadPoolExecutor(
+                1,
                 2,
-                4,
                 1,
                 TimeUnit.MINUTES,
                 new LinkedBlockingQueue<>(5000),

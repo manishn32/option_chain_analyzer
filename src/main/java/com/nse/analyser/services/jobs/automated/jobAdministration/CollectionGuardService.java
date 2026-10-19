@@ -24,7 +24,7 @@ public class CollectionGuardService {
 
     public boolean shouldCollect(
             String symbol,
-            String expiry,
+            Long expiry,
             TimeOfDay timeOfDay,
             DataBaseChoice dataBaseChoice,
             String intradayKey

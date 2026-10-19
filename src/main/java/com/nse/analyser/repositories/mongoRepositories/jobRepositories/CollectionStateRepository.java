@@ -17,7 +17,7 @@ public interface CollectionStateRepository
 
     Optional<CollectionState> findBySymbolAndExpiryDateAndBusinessDateAndTimeOfDayAndDataBaseChoice(
             String symbol,
-            String expiryDate,
+            Long expiryDate,
             LocalDate businessDate,
             TimeOfDay timeOfDay,
             DataBaseChoice dataBaseChoice
@@ -33,5 +33,5 @@ public interface CollectionStateRepository
             CollectionStatus status
     );
 
-    Optional<CollectionState> findBySymbolAndExpiryDateAndDataBaseChoiceAndIntradayKey(String symbol, String expiry, DataBaseChoice dataBaseChoice, String intradayKey);
+    Optional<CollectionState> findBySymbolAndExpiryDateAndDataBaseChoiceAndIntradayKey(String symbol, Long expiry, DataBaseChoice dataBaseChoice, String intradayKey);
 }

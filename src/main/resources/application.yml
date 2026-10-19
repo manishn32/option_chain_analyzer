@@ -30,6 +30,11 @@ projection:
       accuracy: "45 */10 * * * *"
 
 resilience4j:
+  bulkhead:
+    instances:
+      fyers:
+        maxConcurrentCalls: 2
+        maxWaitDuration: 100ms
   circuitbreaker:
     instances:
       nseApi:

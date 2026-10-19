@@ -25,7 +25,7 @@ public class CollectionStateService {
 
     public void markStarted(
             String symbol,
-            String expiry,
+            Long expiry,
             InstrumentType instrumentType,
             TimeOfDay timeOfDay,
             DataBaseChoice dataBaseChoice,
@@ -90,7 +90,7 @@ public class CollectionStateService {
 
     public void markSuccess(
             String symbol,
-            String expiry,
+            Long expiry,
             DataFillRecord records,
             TimeOfDay timeOfDay,
             DataBaseChoice dataBaseChoice,
@@ -209,7 +209,7 @@ public class CollectionStateService {
 
     public void markFailure(
             String symbol,
-            String expiry,
+            Long expiry,
             Exception exception,
             TimeOfDay timeOfDay,
             DataBaseChoice dataBaseChoice,

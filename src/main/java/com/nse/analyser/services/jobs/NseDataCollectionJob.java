@@ -5,6 +5,7 @@ import com.nse.analyser.enums.TimeOfDay;
 import com.nse.analyser.models.holidayInfo.Holiday;
 import com.nse.analyser.models.holidayInfo.HolidayList;
 import com.nse.analyser.services.impl.ChainSnapshotServiceImpl;
+import com.nse.analyser.services.schedulers.FyersOptionChainService;
 import com.nse.analyser.utils.DateTimeFormatters;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DuplicateKeyException;
@@ -53,6 +54,7 @@ public class NseDataCollectionJob {
     private final NseSnapshotRepository nseSnapshotRepository;
     private final SnapshotIdGenerator snapshotIdGenerator;
     private final MongoTemplate mongoTemplate;
+    private final FyersOptionChainService fyersOptionChainService;
 
     private final ChainSnapshotServiceImpl chainSnapshotServiceImpl;
     public Map<InstrumentType, Map<String, List<String>>> findNfoExpires(){
@@ -92,14 +94,17 @@ public class NseDataCollectionJob {
     }
 
 
-    public DataFillRecord fillData(String symbol, String expiryDate, InstrumentType instrumentType, String intradayKey, TimeOfDay timeOfDay){
+    public DataFillRecord fillData(String symbol, Long expiryDate, InstrumentType instrumentType, String intradayKey, TimeOfDay timeOfDay){
 
-        List<ChainSnapshot> snapshots =
-                modelService.getChainSnapshots(
-                        instrumentType,
-                        symbol,
-                        expiryDate
-                );
+//        List<ChainSnapshot> snapshots =
+//                modelService.getChainSnapshots(
+//                        instrumentType,
+//                        symbol,
+//                        expiryDate
+//                );
+        List<ChainSnapshot> snapshots = fyersOptionChainService.getChainSnapshotsFromFyers(instrumentType,symbol,expiryDate,10,false);
+
+        //Here we have to get ChainSnapshot exactly like the
         log.info("Saving into Mongo for symbol: {} expiry: {}",symbol,expiryDate);
         String collectionName =
                 instrumentType == InstrumentType.INDEX
@@ -203,7 +208,7 @@ public class NseDataCollectionJob {
         return new DataFillRecord(snapshots.size(),nseTimeStamp);
 //       mongoTemplate.save(snapshots, instrumentType == InstrumentType.INDEX ? CollectionNames.NSE_INDEX_SNAPSHOT : CollectionNames.NSE_STOCK_SNAPSHOT).size();
     }
-    public DataFillRecord fillDataIntoClickhouseEveryMinute(String symbol, String expiryDate, InstrumentType instrumentType, TimeOfDay timeOfDay) {
+    public DataFillRecord fillDataIntoClickhouseEveryMinute(String symbol, Long expiryDate, InstrumentType instrumentType, TimeOfDay timeOfDay) {
         log.info("Starting to Fill data for clickHouse symbol: {} expiry: {}",symbol,expiryDate);
 
         List<ChainSnapshot> snapshots =

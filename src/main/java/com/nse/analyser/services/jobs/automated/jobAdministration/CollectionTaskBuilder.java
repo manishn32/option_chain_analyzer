@@ -7,6 +7,7 @@ import com.nse.analyser.utils.DateTimeFormatters;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -23,7 +24,7 @@ public class CollectionTaskBuilder {
 
     public List<CollectionTask> buildTasks(
             Map<InstrumentType,
-                    Map<String,List<String>>> metadata,
+                    Map<String,List<Long>>> metadata,
             TimeOfDay timeOfDay,
             DataBaseChoice dataBaseChoice,
             LocalDateTime session
@@ -46,16 +47,17 @@ public class CollectionTaskBuilder {
                 String symbol =
                         symbolEntry.getKey();
 
-                for(String expiry :
+                for(Long expiry :
                         symbolEntry.getValue()) {
 
                     try {
                         String intraDayKey = symbol + "_" + expiry + "_" + dataBaseChoice.name() + "_" + session.toString();
-                        LocalDate expiryDate =
-                                LocalDate.parse(
-                                        expiry,
-                                        DateTimeFormatters.expiryDateFormatter
-                                );
+                        LocalDate expiryDate = LocalDate.from(Instant.ofEpochSecond(expiry).atZone(DateTimeFormatters.IST))
+//                                LocalDate.parse(
+//                                        expiry,
+//                                        DateTimeFormatters.expiryDateFormatter
+//                                )
+                                ;
 
                         if(expiryDate.isBefore(today)){
                             continue;
