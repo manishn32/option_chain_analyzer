@@ -25,8 +25,10 @@ import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -99,9 +101,9 @@ public class NseDataCollectionJob {
 //                        expiryDate
 //                );
         List<ChainSnapshot> snapshots = fyersOptionChainService.getChainSnapshotsFromFyers(instrumentType,symbol,expiryDate,10,false);
-
+        String expiryDateFormatted = Instant.ofEpochSecond(expiryDate).atZone(IST).toLocalDate().format(DateTimeFormatter.ofPattern("dd MMM yyyy"));
         //Here we have to get ChainSnapshot exactly like the
-        log.info("Saving into Mongo for symbol: {} expiry: {}",symbol,expiryDate);
+        log.info("Saving into Mongo for symbol: {} expiry: {} candles: {}",symbol,expiryDateFormatted,snapshots.size());
         String collectionName =
                 instrumentType == InstrumentType.INDEX
                         ? CollectionNames.NSE_INDEX_SNAPSHOT
@@ -127,18 +129,18 @@ public class NseDataCollectionJob {
 
             for (int j = i; j < end; j++) {
 
-                ChainSnapshot snapshot = snapshots.get(j);
+                ChainSnapshot snapshot = batch.get(j);
 
                 if(timeOfDay != TimeOfDay.DURING_DAY){
 ////                        snapshotIdGenerator.generate(symbol,LocalDate.parse(expiryDate,expiryDateFormatter),nseTimeStamp)
-                    snapshot.set_id(
+                    snapshot.setIdentification(
                             symbol + "_" +
-                                    LocalDate.now() + "_" +
-                                    snapshot.getStrikePrice()
+                                    snapshot.getExpiryDate() + "_" +
+                                    snapshot.getStrikePrice() + "_" + LocalDate.now().format(DateTimeFormatter.ofPattern("dd MMM yyyy"))
                     );
                 }
                 else{
-                    snapshot.set_id(intradayKey);
+                    snapshot.setIdentification(intradayKey);
                 }
             }
             try {
@@ -154,7 +156,7 @@ public class NseDataCollectionJob {
                     Query query =
                             Query.query(
                                     Criteria.where("_id")
-                                            .is(snapshot.getSymbol())
+                                            .is(snapshot.getIdentification())
                             );
 
                     bulkOps.replaceOne(
@@ -166,7 +168,7 @@ public class NseDataCollectionJob {
 
                 bulkOps.execute();
 //                mongoTemplate.upsert(batch, collectionName);
-                log.info("Saved into Mongo for symbol: {} expiry: {} and collectin name {}",symbol,expiryDate,collectionName);
+                log.info("Saved into Mongo for symbol: {} expiry: {} and collection: {} candles: {}",symbol, expiryDateFormatted ,collectionName,batch.size());
             }
             catch (DuplicateKeyException dup){
                 log.info("Data already present in mongoDB for symbol : {} and expiry {} with Nse Timestamp = {}",symbol,expiryDate,nseTimeStamp);

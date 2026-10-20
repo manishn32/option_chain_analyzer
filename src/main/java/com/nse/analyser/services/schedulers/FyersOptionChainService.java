@@ -11,12 +11,14 @@ import com.nse.analyser.marketData.service.FyersMarketDataClient;
 import com.nse.analyser.models.ChainSnapshot;
 import com.nse.analyser.models.chainSnapShot.OptionLeg;
 import com.nse.analyser.utils.DateTimeFormatters;
+import com.nse.analyser.utils.NumberUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -140,12 +142,12 @@ public class FyersOptionChainService {
                 data.getCallOi() > 0
                         ?
 //                        (double) data.getPutOi() / data.getCallOi()
-                        (double) totalPutOi / totalCallOi
+                        NumberUtils.roundTo2Decimals((double) totalPutOi / totalCallOi)
                         : 0.0;
 
         Double pcrVolume =
                 totalCallVolume > 0
-                        ? (double) totalPutVolume / totalCallVolume
+                        ? NumberUtils.roundTo2Decimals((double) totalPutVolume / totalCallVolume)
                         : 0.0;
 
         Activity ceActivity =
@@ -219,7 +221,7 @@ public class FyersOptionChainService {
 
         snapshot.setPeActivity(peActivity);
 
-        snapshot.setExpiryDate(Instant.ofEpochSecond(expiry).atZone(IST).toLocalDate().toString());
+        snapshot.setExpiryDate(Instant.ofEpochSecond(expiry).atZone(IST).toLocalDate().format(DateTimeFormatter.ofPattern("dd MMM yyyy")).toString());
 
         snapshot.setCE(
                 container.getCe() == null
@@ -262,6 +264,7 @@ public class FyersOptionChainService {
                                 ? 0.0
                                 : underlyingValue
                 )
+                .symbol(dto.getSymbol())
                 .LTP(dto.getLtp())
                 .openInterest(dto.getOi())
                 .changeInOpenInterest(dto.getOich())

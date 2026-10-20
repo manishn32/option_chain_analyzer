@@ -30,12 +30,12 @@ public class CollectionGuardService {
             String intradayKey
     ) {
 
-        if(timeOfDay == TimeOfDay.DURING_DAY
-                && dataBaseChoice == DataBaseChoice.MongoDB
-                && !symbol.equalsIgnoreCase("NIFTY")){
-            log.info("Not nifty symbol for intraday collect, hence skipping - mongo {}",symbol);
-            return false;
-        }
+//        if(timeOfDay == TimeOfDay.DURING_DAY
+//                && dataBaseChoice == DataBaseChoice.MongoDB
+//                && !symbol.equalsIgnoreCase("NIFTY")){
+//            log.info("Not nifty symbol for intraday collect, hence skipping - mongo {}",symbol);
+//            return false;
+//        }
 
         if(timeOfDay == TimeOfDay.DURING_DAY
                 && dataBaseChoice == DataBaseChoice.ClickHouse

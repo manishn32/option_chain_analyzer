@@ -6,6 +6,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.index.CompoundIndexes;
 import org.springframework.data.mongodb.core.mapping.Document;
@@ -44,8 +45,8 @@ unique = true
         })
 public class ChainSnapshot {
 
-//    @Id
-    private String _id;
+    @Id
+    private String identification;
     private String symbol;
 
     private String underlying;
