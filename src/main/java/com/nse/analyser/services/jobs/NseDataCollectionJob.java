@@ -6,12 +6,9 @@ import com.nse.analyser.models.holidayInfo.Holiday;
 import com.nse.analyser.models.holidayInfo.HolidayList;
 import com.nse.analyser.services.impl.ChainSnapshotServiceImpl;
 import com.nse.analyser.services.schedulers.FyersOptionChainService;
-import com.nse.analyser.utils.DateTimeFormatters;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DuplicateKeyException;
-import com.mongodb.MongoBulkWriteException;
 import com.nse.analyser.constants.CollectionNames;
-import com.nse.analyser.enums.DataCategory;
 import com.nse.analyser.enums.InstrumentType;
 import com.nse.analyser.enums.OptionRank;
 import com.nse.analyser.models.ChainSnapshot;
@@ -30,7 +27,6 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -123,20 +119,6 @@ public class NseDataCollectionJob {
              * //                        + strikeData.getStrikePrice()
              * */
             nseTimeStamp = snapshots.get(i).getNseTimestamp();
-//            if(timeOfDay != TimeOfDay.DURING_DAY){
-//                snapshots.get(i).setId(
-//
-//                        symbol
-//                                + "_"
-//                                + nseTimeStamp
-//                                + "_"
-//                                + snapshots.get(i).getStrikePrice()
-////                        snapshotIdGenerator.generate(symbol,LocalDate.parse(expiryDate,expiryDateFormatter),nseTimeStamp)
-//
-//                );
-//            }else{
-//                snapshots.get(i).setId(intradayKey);
-//            }
 
             int end = Math.min(i + batchSize, snapshots.size());
 
@@ -149,14 +131,14 @@ public class NseDataCollectionJob {
 
                 if(timeOfDay != TimeOfDay.DURING_DAY){
 ////                        snapshotIdGenerator.generate(symbol,LocalDate.parse(expiryDate,expiryDateFormatter),nseTimeStamp)
-                    snapshot.setId(
+                    snapshot.set_id(
                             symbol + "_" +
-                                    snapshot.getNseTimestamp() + "_" +
+                                    LocalDate.now() + "_" +
                                     snapshot.getStrikePrice()
                     );
                 }
                 else{
-                    snapshot.setId(intradayKey);
+                    snapshot.set_id(intradayKey);
                 }
             }
             try {
@@ -172,7 +154,7 @@ public class NseDataCollectionJob {
                     Query query =
                             Query.query(
                                     Criteria.where("_id")
-                                            .is(snapshot.getId())
+                                            .is(snapshot.getSymbol())
                             );
 
                     bulkOps.replaceOne(
@@ -188,7 +170,7 @@ public class NseDataCollectionJob {
             }
             catch (DuplicateKeyException dup){
                 log.info("Data already present in mongoDB for symbol : {} and expiry {} with Nse Timestamp = {}",symbol,expiryDate,nseTimeStamp);
-                log.debug("Duplicate key found for symbol {} with key {} ", snapshots.getFirst().getUnderlying(), snapshots.getFirst().getId());
+                log.debug("Duplicate key found for symbol {} with key {} ", snapshots.getFirst().getUnderlying(), snapshots.getFirst().getSymbol());
                 throw dup;
             }
             catch (DataAccessException exp){

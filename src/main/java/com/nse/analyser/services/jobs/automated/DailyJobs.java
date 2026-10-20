@@ -174,7 +174,7 @@ public class DailyJobs {
 //        }
 //    }
 
-//    @Scheduled(cron = "0 * * * * *", zone = "Asia/Kolkata")
+    @Scheduled(cron = "0 * * * * *", zone = "Asia/Kolkata")
     public void executeClickHouseDuringDay(){
         LocalTime now = LocalTime.now(IST);
 //          Use this to control market timing injection
@@ -243,7 +243,7 @@ public class DailyJobs {
             return;
         }
 
-        if (mapOfSymbolToExpiry == null || mapOfSymbolToExpiry.isEmpty()) {
+        if (mapOfSymbolToExpiry.isEmpty()) {
             log.info("No symbols and expiry dates mapped yet. Skipping collection.");
             return;
         }

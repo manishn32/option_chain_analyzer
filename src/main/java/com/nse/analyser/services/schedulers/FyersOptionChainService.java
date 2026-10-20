@@ -23,6 +23,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
+import static com.nse.analyser.utils.DateTimeFormatters.IST;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -54,6 +56,9 @@ public class FyersOptionChainService {
         long totalCallVolume = 0L;
         long totalPutVolume = 0L;
 
+        long totalPutOi = 0L;
+        long totalCallOi = 0L;
+
         for (OptionChainItemDTO dto : data.getOptionsChain()) {
 
             // Nifty row
@@ -80,6 +85,7 @@ public class FyersOptionChainService {
                 container.setCe(dto);
 
                 totalCallVolume += dto.getVolume();
+                totalCallOi +=dto.getOi();
             }
             else if ("PE".equalsIgnoreCase(dto.getOptionType())) {
 
@@ -93,6 +99,7 @@ public class FyersOptionChainService {
                 container.setPe(dto);
 
                 totalPutVolume += dto.getVolume();
+                totalPutOi += dto.getOi();
             }
         }
 
@@ -101,7 +108,7 @@ public class FyersOptionChainService {
                 underlyingRow,
                 data,
                 totalCallVolume,
-                totalPutVolume,expiry
+                totalPutVolume,expiry, totalPutOi, totalCallOi
         );
     }
 
@@ -111,12 +118,18 @@ public class FyersOptionChainService {
             OptionChainDataDTO data,
             long totalCallVolume,
             long totalPutVolume,
-            Long expiry) {
+            Long expiry,
+            long totalPutOi,
+            long totalCallOi) {
 
         String underlying =
                 underlyingRow != null
-                        ? underlyingRow.getSymbol()
+                        ? underlyingRow.getExSymbol()
                         : null;
+
+        String symbol = underlyingRow != null
+                ? underlyingRow.getSymbol()
+                : null;
 
         Double underlyingValue =
                 underlyingRow != null
@@ -125,7 +138,9 @@ public class FyersOptionChainService {
 
         Double pcrOi =
                 data.getCallOi() > 0
-                        ? (double) data.getPutOi() / data.getCallOi()
+                        ?
+//                        (double) data.getPutOi() / data.getCallOi()
+                        (double) totalPutOi / totalCallOi
                         : 0.0;
 
         Double pcrVolume =
@@ -163,7 +178,8 @@ public class FyersOptionChainService {
                             ceActivity,
                             peActivity,
                             snapshotTime,
-                            expiry
+                            expiry,
+                            symbol
                     )
             );
         }
@@ -181,10 +197,12 @@ public class FyersOptionChainService {
             Activity ceActivity,
             Activity peActivity,
             Instant snapshotTime,
-            Long expiry) {
+            Long expiry,
+            String symbol) {
 
         ChainSnapshot snapshot = new ChainSnapshot();
 
+        snapshot.setSymbol(symbol);
         snapshot.setUnderlying(underlying);
 
         snapshot.setUnderlyingValue(underlyingValue);
@@ -200,6 +218,8 @@ public class FyersOptionChainService {
         snapshot.setCeActivity(ceActivity);
 
         snapshot.setPeActivity(peActivity);
+
+        snapshot.setExpiryDate(Instant.ofEpochSecond(expiry).atZone(IST).toLocalDate().toString());
 
         snapshot.setCE(
                 container.getCe() == null
@@ -252,7 +272,7 @@ public class FyersOptionChainService {
                 .strikePrice(dto.getStrikePrice())
                 .snapshotTimestamp(snapshotTime)
                 .reference_oi(dto.getPrevOi())
-                .expiryDate(LocalDate.from(Instant.ofEpochSecond(expiry).atZone(DateTimeFormatters.IST)))
+                .expiryDate(LocalDate.from(Instant.ofEpochSecond(expiry).atZone(IST)))
                 .optionType(
                         "CE".equalsIgnoreCase(dto.getOptionType())
                                 ? OptionType.CE
