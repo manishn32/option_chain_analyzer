@@ -77,8 +77,8 @@ public class ModelService {
                             atmStrike,
                             nseTimestamp);
             if( chainSnapshot != null) {
-                chainSnapshot.setCeActivity(filtered.getCE());
-                chainSnapshot.setPeActivity(filtered.getPE());
+//                chainSnapshot.setCeActivity(filtered.getCE());
+//                chainSnapshot.setPeActivity(filtered.getPE());
                 snapshots.add(chainSnapshot);
             }
         }
@@ -125,27 +125,27 @@ public class ModelService {
 
         snapshot.setExpiryDate(strikeData.getExpiryDates());
 
-        snapshot.setStrikePrice(strikeData.getStrikePrice());
+//        snapshot.setStrikePrice(strikeData.getStrikePrice());
 
         snapshot.setNseTimestamp(LocalDateTime.parse(nseTimestamp, DateTimeFormatters.nseTimestampFormatter));
-        snapshot.setCE(
-                toOptionLeg(strikeData.getCe(),
-                        OptionType.CE,
-                        ceActivity,
-                        peActivity,
-                        atmStrike,
-                        nseTimestamp,
-                        snapshotTime,
-                        strikeData.getExpiryDates()));
-        snapshot.setPE(
-                toOptionLeg(strikeData.getPe(),
-                        OptionType.PE,
-                        ceActivity,
-                        peActivity,
-                        atmStrike,
-                        nseTimestamp,
-                        snapshotTime,
-                        strikeData.getExpiryDates()));
+//        snapshot.getCE().add(
+//                toOptionLeg(strikeData.getCe(),
+//                        OptionType.CE,
+//                        ceActivity,
+//                        peActivity,
+//                        atmStrike,
+//                        nseTimestamp,
+//                        snapshotTime,
+//                        strikeData.getExpiryDates()));
+//        snapshot.getPE().add(
+//                toOptionLeg(strikeData.getPe(),
+//                        OptionType.PE,
+//                        ceActivity,
+//                        peActivity,
+//                        atmStrike,
+//                        nseTimestamp,
+//                        snapshotTime,
+//                        strikeData.getExpiryDates()));
 
         snapshot.setSnapshotTime(snapshotTime);
 
@@ -185,7 +185,7 @@ public class ModelService {
         marketDepth.setTotalBuyQuantity(contract.getTotalBuyQuantity());
         marketDepth.setTotalSellQuantity(contract.getTotalSellQuantity());
         leg.setUnderlying(contract.getUnderlying());
-        leg.setUnderlyingValue(contract.getUnderlyingValue());
+//        leg.setUnderlyingValue(contract.getUnderlyingValue());
         leg.setExpiryDate(
                 LocalDate.parse(expiry, DateTimeFormatters.expiryDateFormatter)
         );

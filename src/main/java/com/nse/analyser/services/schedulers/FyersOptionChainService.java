@@ -1,6 +1,5 @@
 package com.nse.analyser.services.schedulers;
 
-import com.nse.analyser.dtos.nseResponse.Activity;
 import com.nse.analyser.enums.InstrumentType;
 import com.nse.analyser.enums.OptionType;
 import com.nse.analyser.marketData.dto.fyers.OptionChainDataDTO;
@@ -10,7 +9,7 @@ import com.nse.analyser.marketData.dto.fyers.StrikeContainer;
 import com.nse.analyser.marketData.service.FyersMarketDataClient;
 import com.nse.analyser.models.ChainSnapshot;
 import com.nse.analyser.models.chainSnapShot.OptionLeg;
-import com.nse.analyser.utils.DateTimeFormatters;
+import com.nse.analyser.models.chainSnapShot.StrikeSnapshot;
 import com.nse.analyser.utils.NumberUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,7 +19,6 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -34,12 +32,12 @@ public class FyersOptionChainService {
 
     private final FyersMarketDataClient fyersMarketDataClient;
 
-    public List<ChainSnapshot> getChainSnapshotsFromFyers(InstrumentType instrumentType, String symbol, Long expiry, Integer strikeCount, Boolean greeks){
+    public ChainSnapshot getChainSnapshotsFromFyers(InstrumentType instrumentType, String symbol, Long expiry, Integer strikeCount, Boolean greeks){
         OptionChainResponseDTO optionChain = fyersMarketDataClient.getOptionChain(symbol, strikeCount, expiry, greeks);
         return convertIntoDataModel(optionChain,expiry);
     }
 
-    public List<ChainSnapshot> convertIntoDataModel(
+    public ChainSnapshot convertIntoDataModel(
             OptionChainResponseDTO response,
             Long expiry) {
 
@@ -48,7 +46,7 @@ public class FyersOptionChainService {
         OptionChainDataDTO data = response.getData();
 
         if (data == null || data.getOptionsChain() == null) {
-            return Collections.emptyList();
+            return null;
         }
 
         Map<Double, StrikeContainer> strikeMap = new TreeMap<>();
@@ -114,7 +112,7 @@ public class FyersOptionChainService {
         );
     }
 
-    private List<ChainSnapshot> buildSnapshots(
+    private ChainSnapshot buildSnapshots(
             Map<Double, StrikeContainer> strikeMap,
             OptionChainItemDTO underlyingRow,
             OptionChainDataDTO data,
@@ -135,7 +133,7 @@ public class FyersOptionChainService {
 
         Double underlyingValue =
                 underlyingRow != null
-                        ? underlyingRow.getFp()
+                        ? underlyingRow.getLtp()
                         : null;
 
         Double pcrOi =
@@ -150,66 +148,46 @@ public class FyersOptionChainService {
                         ? NumberUtils.roundTo2Decimals((double) totalPutVolume / totalCallVolume)
                         : 0.0;
 
-        Activity ceActivity =
-                new Activity(
-                        data.getCallOi(),
-                        totalCallVolume
-                );
-
-        Activity peActivity =
-                new Activity(
-                        data.getPutOi(),
-                        totalPutVolume
-                );
+//        Activity ceActivity =
+//                new Activity(
+//                        data.getCallOi(),
+//                        totalCallVolume
+//                );
+//
+//        Activity peActivity =
+//                new Activity(
+//                        data.getPutOi(),
+//                        totalPutVolume
+//                );
 
         Instant snapshotTime = Instant.now();
 
-        List<ChainSnapshot> snapshots =
-                new ArrayList<>(strikeMap.size());
-
-        for (Map.Entry<Double, StrikeContainer> entry : strikeMap.entrySet()) {
-
-            snapshots.add(
-                    createSnapshot(
-                            entry.getKey(),
-                            entry.getValue(),
-                            underlying,
-                            underlyingValue,
-                            pcrOi,
-                            pcrVolume,
-                            ceActivity,
-                            peActivity,
-                            snapshotTime,
-                            expiry,
-                            symbol
-                    )
-            );
-        }
-
-        return snapshots;
-    }
-
-    private ChainSnapshot createSnapshot(
-            Double strike,
-            StrikeContainer container,
-            String underlying,
-            Double underlyingValue,
-            Double pcrOi,
-            Double pcrVolume,
-            Activity ceActivity,
-            Activity peActivity,
-            Instant snapshotTime,
-            Long expiry,
-            String symbol) {
-
+//        ChainSnapshot snapshots =
+//                new ChainSnapshot();
         ChainSnapshot snapshot = new ChainSnapshot();
-
         snapshot.setSymbol(symbol);
         snapshot.setUnderlying(underlying);
-
+        snapshot.setIndiavixData(data.getIndiavixData());
         snapshot.setUnderlyingValue(underlyingValue);
-
-        snapshot.setStrikePrice(strike);
+        snapshot.setUnderlyingChange(underlyingRow != null
+                ? underlyingRow.getLtpch()
+                : null);
+        snapshot.setUnderlyingChangeP(underlyingRow != null
+                ? underlyingRow.getLtpchp()
+                : null);
+        snapshot.setFuturesPrice(underlyingRow != null
+                ? underlyingRow.getFp()
+                : null);
+        snapshot.setFuturesChange(underlyingRow != null
+                ? underlyingRow.getFpch()
+                : null);
+        snapshot.setFuturesChangeP(underlyingRow != null
+                ? underlyingRow.getFpchp()
+                : null);
+        snapshot.setPremium((underlyingRow != null
+                ? underlyingRow.getFp()
+                : 0.0 ) - (underlyingValue != null ? underlyingValue:0.0) );
+//        snapshot.setStrikePrice(strike);
 
         snapshot.setSnapshotTime(snapshotTime);
 
@@ -217,54 +195,96 @@ public class FyersOptionChainService {
 
         snapshot.setPcr_volume(pcrVolume);
 
-        snapshot.setCeActivity(ceActivity);
-
-        snapshot.setPeActivity(peActivity);
+//        snapshot.setCeActivity(ceActivity);
+//
+//        snapshot.setPeActivity(peActivity);
 
         snapshot.setExpiryDate(Instant.ofEpochSecond(expiry).atZone(IST).toLocalDate().format(DateTimeFormatter.ofPattern("dd MMM yyyy")).toString());
 
-        snapshot.setCE(
-                container.getCe() == null
-                        ? null
-                        : mapOptionLeg(
-                        container.getCe(),
-                        underlying,
-                        underlyingValue,
-                        snapshotTime,
-                        expiry
-                )
-        );
 
-        snapshot.setPE(
-                container.getPe() == null
-                        ? null
-                        : mapOptionLeg(
-                        container.getPe(),
-                        underlying,
-                        underlyingValue,
+             return        createSnapshot(
+                            strikeMap.values().stream().toList(),
+                            snapshotTime,
+                            expiry,
+                            snapshot,
+                     underlyingRow != null
+                             ? underlyingRow.getLtpchp()
+                             : null
+            );
+    }
+
+    private ChainSnapshot createSnapshot(
+            List<StrikeContainer> containers,
+            Instant snapshotTime,
+            Long expiry,
+            ChainSnapshot snapshot,
+            Double underlyingChange) {
+
+        List<StrikeSnapshot> strikeSnapshots = new ArrayList<>();
+
+        for (StrikeContainer container : containers) {
+
+            OptionLeg ce = null;
+            OptionLeg pe = null;
+            Double strikePrice = null;
+
+            if (container.getCe() != null) {
+
+                ce = mapOptionLeg(
+                        container.getCe(),
                         snapshotTime,
-                        expiry
-                )
-        );
+                        expiry,
+                        underlyingChange
+                );
+
+                strikePrice = ce.getStrikePrice();
+            }
+
+            if (container.getPe() != null) {
+
+                pe = mapOptionLeg(
+                        container.getPe(),
+                        snapshotTime,
+                        expiry,underlyingChange
+
+                );
+
+                if (strikePrice == null) {
+                    strikePrice = pe.getStrikePrice();
+                }
+            }
+
+            strikeSnapshots.add(
+                    StrikeSnapshot.builder()
+                            .strikePrice(strikePrice)
+                            .ce(ce)
+                            .pe(pe)
+                            .build()
+            );
+        }
+
+        snapshot.setStrikes(strikeSnapshots);
 
         return snapshot;
     }
 
     private OptionLeg mapOptionLeg(
             OptionChainItemDTO dto,
-            String underlying,
-            Double underlyingValue,
+//            String underlying,
+//            Double underlyingValue,
             Instant snapshotTime,
-            Long expiry) {
+            Long expiry,
+            Double underlyingChange) {
 
         return OptionLeg.builder()
-                .underlying(underlying)
-                .underlyingValue(
-                        underlyingValue == null
-                                ? 0.0
-                                : underlyingValue
-                )
+//                .underlying(underlying)
+//                .underlyingValue(
+//                        underlyingValue == null
+//                                ? 0.0
+//                                : underlyingValue
+//                )
                 .symbol(dto.getSymbol())
+                .underlyingChange(underlyingChange)
                 .LTP(dto.getLtp())
                 .openInterest(dto.getOi())
                 .changeInOpenInterest(dto.getOich())

@@ -27,7 +27,7 @@ public class NseSnapshotRepositoryImpl implements NseSnapshotRepository {
         private final RowMapper<OptionLeg> ROW_MAPPER =
                 (rs, rowNum) -> OptionLeg.builder()
                         .underlying(rs.getString("underlying"))
-                        .underlyingValue(rs.getDouble("underlying_value"))
+//                        .underlyingValue(rs.getDouble("underlying_value"))
                         .strikePrice(rs.getDouble("strike_price"))
                         .optionType(OptionType.valueOf(rs.getString("option_type")))
                         .expiryDate(rs.getDate("expiry_date").toLocalDate())
@@ -85,7 +85,7 @@ public class NseSnapshotRepositoryImpl implements NseSnapshotRepository {
                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 """,
                     s.getUnderlying(),
-                    s.getUnderlyingValue(),
+//                    s.getUnderlyingValue(),
                     s.getStrikePrice(),
                     s.getOptionType(),
                     s.getExpiryDate(),
@@ -114,7 +114,7 @@ public class NseSnapshotRepositoryImpl implements NseSnapshotRepository {
                     snapshots.size(),
                     (ps, s) -> {
                         ps.setString(1, s.getUnderlying());
-                        ps.setDouble(2, s.getUnderlyingValue());
+//                        ps.setDouble(2, s.getUnderlyingValue());
                         ps.setDouble(3, s.getStrikePrice());
                         ps.setString(4, s.getOptionType().name());
                         ps.setString(5, s.getOptionRank().name());

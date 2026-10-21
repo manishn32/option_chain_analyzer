@@ -149,7 +149,8 @@ public class CollectionExecutorService {
 
             DataFillRecord records = dataBaseChoice == DataBaseChoice.MongoDB ?
                     job.fillData(task.getSymbol(), task.getExpiryDate(), task.getInstrumentType(),task.getIntradayKey(),timeOfDay) :
-                    job.fillDataIntoClickhouseEveryMinute(task.getSymbol(), task.getExpiryDate(), task.getInstrumentType(),timeOfDay);
+                    null;
+//                    job.fillDataIntoClickhouseEveryMinute(task.getSymbol(), task.getExpiryDate(), task.getInstrumentType(),timeOfDay);
 
             stateService.markSuccess(
                     task.getSymbol(),

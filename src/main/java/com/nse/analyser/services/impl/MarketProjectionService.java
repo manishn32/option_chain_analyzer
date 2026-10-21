@@ -99,17 +99,17 @@ public class MarketProjectionService {
 
         MarketRegime regime = ProjectionCalculator.regime(score, breakoutProbability);
 
-        double spotPrice = snapshots.stream()
-                .mapToDouble(OptionLeg::getUnderlyingValue)
-                .average()
-                .orElse(0);
+//        double spotPrice = snapshots.stream()
+////                .mapToDouble(OptionLeg::getUnderlyingValue)
+////                .average()
+//                .orElse(0);
 
         MarketProjection projection = MarketProjection.builder()
                 .timestamp(LocalDateTime.now())
                 .timeframe(timeframe)
                 .underlying(underlying)
                 .expiryDate(expiryDate)
-                .spotPrice(spotPrice)
+                .spotPrice(0.0)
                 .supportStrike(support)
                 .supportStrength(supportStrength)
                 .resistanceStrike(resistance)
