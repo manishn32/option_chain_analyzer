@@ -60,8 +60,8 @@ public class DailyJobs {
     private final TelegramConfiguration telegramConfiguration;
 
     private final ChainSnapshotServiceImpl chainSnapshotService;
-    @Order(3)
-    @EventListener(ApplicationStartedEvent.class)
+    @Order(5)
+    @EventListener(ApplicationReadyEvent.class)
     public void startDataCollection(){
         //Get all Symbols and expires
         mapSymbolsAndExpiresForNSE();

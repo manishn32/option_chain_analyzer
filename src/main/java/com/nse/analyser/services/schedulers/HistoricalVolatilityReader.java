@@ -5,16 +5,15 @@ import com.nse.analyser.rabbitMQ.TelegramConfiguration;
 import com.nse.analyser.rabbitMQ.dtos.Communications;
 import com.nse.analyser.rabbitMQ.producer.TelegramPublisher;
 import com.nse.analyser.utils.NumberUtils;
-import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.context.event.ApplicationStartedEvent;
-import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Service;
 
 import java.io.Reader;
@@ -37,8 +36,8 @@ public class HistoricalVolatilityReader {
     private final TelegramConfiguration telegramConfiguration;
 
     public static final Map<String, HistoricalVolatility> mapOfVolatility = new HashMap<>();
-
-    @EventListener(ApplicationStartedEvent.class)
+    @Order(3)
+    @EventListener(ApplicationReadyEvent.class)
     public void initMap(){
         try {
             read();

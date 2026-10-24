@@ -1,12 +1,19 @@
 package com.nse.analyser.services.jobs;
 
+import com.nse.analyser.constants.CollectionNames;
 import com.nse.analyser.dtos.nseResponse.DataFillRecord;
 import com.nse.analyser.dtos.nseResponse.HistoricalVolatility;
+import com.nse.analyser.enums.InstrumentType;
+import com.nse.analyser.enums.OptionRank;
 import com.nse.analyser.enums.OptionType;
 import com.nse.analyser.enums.TimeOfDay;
+import com.nse.analyser.models.ChainSnapshot;
+import com.nse.analyser.models.SymbolsAndExpiry;
+import com.nse.analyser.models.chainSnapShot.OptionLeg;
 import com.nse.analyser.models.chainSnapShot.StrikeSnapshot;
 import com.nse.analyser.models.holidayInfo.Holiday;
 import com.nse.analyser.models.holidayInfo.HolidayList;
+import com.nse.analyser.rabbitMQ.TelegramConfiguration;
 import com.nse.analyser.rabbitMQ.dtos.Communications;
 import com.nse.analyser.rabbitMQ.producer.TelegramPublisher;
 import com.nse.analyser.services.impl.ChainSnapshotServiceImpl;
@@ -14,23 +21,16 @@ import com.nse.analyser.services.schedulers.FyersOptionChainService;
 import com.nse.analyser.services.schedulers.HistoricalVolatilityReader;
 import com.nse.analyser.utils.DataTransformUtil;
 import com.nse.analyser.utils.DateTimeFormatters;
-import org.springframework.dao.DataAccessException;
-import org.springframework.dao.DuplicateKeyException;
-import com.nse.analyser.constants.CollectionNames;
-import com.nse.analyser.enums.InstrumentType;
-import com.nse.analyser.enums.OptionRank;
-import com.nse.analyser.models.ChainSnapshot;
-import com.nse.analyser.models.SymbolsAndExpiry;
-import com.nse.analyser.models.chainSnapShot.OptionLeg;
-import com.nse.analyser.repositories.NseSnapshotRepository;
-import com.nse.analyser.services.impl.ModelService;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataAccessException;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.BulkOperations;
 import org.springframework.data.mongodb.core.FindAndReplaceOptions;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -44,8 +44,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import org.springframework.data.mongodb.core.query.Query;
-
 import static com.nse.analyser.utils.DateTimeFormatters.IST;
 import static com.nse.analyser.utils.DateTimeFormatters.expiryDateFormatter;
 
@@ -53,12 +51,13 @@ import static com.nse.analyser.utils.DateTimeFormatters.expiryDateFormatter;
 @Slf4j
 @AllArgsConstructor
 public class NseDataCollectionJob {
-    private final ModelService modelService;
-    private final NseSnapshotRepository nseSnapshotRepository;
-    private final SnapshotIdGenerator snapshotIdGenerator;
+//    private final ModelService modelService;
+//    private final NseSnapshotRepository nseSnapshotRepository;
+//    private final SnapshotIdGenerator snapshotIdGenerator;
     private final MongoTemplate mongoTemplate;
     private final FyersOptionChainService fyersOptionChainService;
     private final TelegramPublisher telegramPublisher;
+    private final TelegramConfiguration telegramConfiguration;
 
     private final ChainSnapshotServiceImpl chainSnapshotServiceImpl;
     public Map<InstrumentType, Map<String, List<String>>> findNfoExpires(){
@@ -193,6 +192,7 @@ public class NseDataCollectionJob {
             }
             catch (Exception ex){
                 Communications communications = new Communications();
+                communications.setChatId(telegramConfiguration.getErrors());
                 communications.setMessage("Option chain analyser App failed for symbol %s timeframe %s expiry = %s \n Error: %s".formatted(symbol,Instant.ofEpochSecond(expiryDate).atZone(IST).toLocalDate().toString(),timeOfDay,ex));
                 telegramPublisher.publish(communications);
                 log.error("Actual exception class = {}", ex.getClass().getName(), ex);

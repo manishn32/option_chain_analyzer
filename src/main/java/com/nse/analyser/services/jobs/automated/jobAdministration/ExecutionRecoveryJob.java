@@ -19,7 +19,7 @@ public class ExecutionRecoveryJob {
 
     private final CollectionStateRepository repository;
 
-    @Order(2)
+    @Order(4)
     @EventListener(ApplicationReadyEvent.class)
     public void recoverBrokenExecutions() {
 
