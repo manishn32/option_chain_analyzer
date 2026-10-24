@@ -147,7 +147,7 @@ ai:
     model: qwen2.5:1.5b
 
 server:
-  port: 8097
+  port: ${SERVER_PORT:8097}
 
 telegram:
   info: ${TELEGRAM_BOT_INFO}
