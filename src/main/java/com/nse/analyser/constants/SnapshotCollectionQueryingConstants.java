@@ -5,5 +5,6 @@ public enum SnapshotCollectionQueryingConstants {
     nseTimestamp,
     expiryDate,
     underlying,
-    strikePrice
+    strikePrice,
+    symbol
 }

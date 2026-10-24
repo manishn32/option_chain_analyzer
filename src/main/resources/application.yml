@@ -13,6 +13,11 @@ spring:
   data:
     mongodb:
       uri: mongodb://localhost:27017/analyser
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
 logging:
   level:
     com.nse.analyser: DEBUG
@@ -134,7 +139,8 @@ market-data:
 
 #logs dir with key : LOG_HOME = C:/Users/manis/Downloads/analyserApplication/logs
 
-
+# RABBITMQ_DEFAULT_PASS=guest
+#RABBITMQ_DEFAULT_USEguest
 ai:
   ollama:
     base-url: http://localhost:11434
@@ -142,3 +148,10 @@ ai:
 
 server:
   port: 8097
+
+telegram:
+  info: ${TELEGRAM_BOT_INFO}
+  errors: ${TELEGRAM_BOT_ERROR}
+historical:
+  volatility:
+    file: ${VOLATILITY_FILE_PATH}

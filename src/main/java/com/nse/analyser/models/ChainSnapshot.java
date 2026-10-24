@@ -1,6 +1,8 @@
 package com.nse.analyser.models;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.nse.analyser.dtos.nseResponse.HistoricalVolatility;
+import com.nse.analyser.dtos.nseResponse.Range;
 import com.nse.analyser.enums.OptionRank;
 import com.nse.analyser.enums.OptionType;
 import com.nse.analyser.enums.PremiumBias;
@@ -26,7 +28,7 @@ import java.util.List;
 @CompoundIndexes({
         @CompoundIndex(
                 name = "uniq_expiry_underlying_timestamp",
-                def = "{'expiryDate':1,'underlying':1,'snapshotTime':1}",
+                def = "{'expiryDate':1,'underlying':1,'snapshotTime':-1}",
                 unique = true
         ),
         @CompoundIndex(
@@ -35,7 +37,7 @@ import java.util.List;
         ),
         @CompoundIndex(
                 name = "underlying_expiry_nse_idx",
-                def = "{'underlying':1,'expiryDate':1,'nseTimestamp':-1}"
+                def = "{'expiryDate':1,'symbol':1,'snapshotTime':-1}"
         )
 })
 public class ChainSnapshot {
@@ -67,14 +69,25 @@ public class ChainSnapshot {
 
     private Instant snapshotTime;
 
+    private Double pcr;
+
     private Double pcr_oi;
 
     private Double pcr_volume;
+
+    private double pcr_oi_change;
 
     private PremiumBias premiumBias;
 
     private IndexDataDTO indiavixData;
 
+    private HistoricalVolatility historicalVolatility;
+
+    private Range straddle;
+    private Range HistoricalIv;
+    private Range atmIvRange;
+    private Long tradingDaysToExpiry;
+    private Long daysTillExpiry;
     private List<StrikeSnapshot> strikes = new ArrayList<>();
 
     @JsonIgnore
@@ -117,6 +130,24 @@ public class ChainSnapshot {
     }
 
     @JsonIgnore
+    public StrikeSnapshot getIntradayMaxCallOiStrike() {
+
+        return this.getStrikes()
+                .stream()
+                .filter(
+                        strike ->
+                                strike.getCe() != null
+                )
+                .max(
+                        Comparator.comparingLong(
+                                strike ->
+                                        strike.getCe().getChangeInOpenInterest()
+                        )
+                )
+                .orElse(null);
+    }
+
+    @JsonIgnore
     public StrikeSnapshot getMaxPutOiStrike(
             ) {
 
@@ -136,6 +167,25 @@ public class ChainSnapshot {
     }
 
     @JsonIgnore
+    public StrikeSnapshot getIntradayMaxPutOiStrike(
+    ) {
+
+        return this.getStrikes()
+                .stream()
+                .filter(
+                        strike ->
+                                strike.getPe() != null
+                )
+                .max(
+                        Comparator.comparingLong(
+                                strike ->
+                                        strike.getPe().getChangeInOpenInterest()
+                        )
+                )
+                .orElse(null);
+    }
+
+    @JsonIgnore
     public Double getSupport() {
 
         StrikeSnapshot support =
@@ -147,10 +197,32 @@ public class ChainSnapshot {
     }
 
     @JsonIgnore
+    public Double getIntradaySupport() {
+
+        StrikeSnapshot support =
+                getIntradayMaxPutOiStrike();
+
+        return support == null
+                ? null
+                : support.getStrikePrice();
+    }
+
+    @JsonIgnore
     public Double getResistance() {
 
         StrikeSnapshot resistance =
                 getMaxCallOiStrike();
+
+        return resistance == null
+                ? null
+                : resistance.getStrikePrice();
+    }
+
+    @JsonIgnore
+    public Double getIntradayResistance() {
+
+        StrikeSnapshot resistance =
+                getIntradayMaxCallOiStrike();
 
         return resistance == null
                 ? null

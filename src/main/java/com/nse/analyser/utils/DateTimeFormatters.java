@@ -14,6 +14,11 @@ public class DateTimeFormatters {
                     .appendPattern("dd-MMM-yyyy")
                     .toFormatter(Locale.ENGLISH);
 
+    public static final DateTimeFormatter expiryForSnapShot =
+            new DateTimeFormatterBuilder()
+                    .parseCaseInsensitive()
+                    .appendPattern("dd MMM yyyy")
+                    .toFormatter(Locale.ENGLISH);
     public static final DateTimeFormatter nseTimestampFormatter = new DateTimeFormatterBuilder()
                     .parseCaseInsensitive()
                     .appendPattern("dd-MMM-yyyy HH:mm:ss")

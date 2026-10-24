@@ -66,4 +66,5 @@ public class OptionChainItemDTO {
 
     private Double fpchp;
 
+    private GreeksDto greeks;
 }

@@ -77,7 +77,7 @@ class ProjectionCalculatorTest {
 
         return OptionLeg.builder()
                 .underlying("NIFTY")
-                .underlyingValue(24200)
+//                .underlyingValue(24200)
                 .strikePrice(strike)
                 .optionType(type)
                 .optionActivity(activity)

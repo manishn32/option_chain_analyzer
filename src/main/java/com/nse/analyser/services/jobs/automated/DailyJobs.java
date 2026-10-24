@@ -6,7 +6,12 @@ import com.nse.analyser.enums.TimeOfDay;
 import com.nse.analyser.marketData.dto.InstrumentDTO;
 import com.nse.analyser.marketData.dto.SymbolsAndExpiryDTO;
 import com.nse.analyser.marketData.service.FyersMarketDataClient;
+import com.nse.analyser.models.ChainSnapshot;
 import com.nse.analyser.models.holidayInfo.Holiday;
+import com.nse.analyser.rabbitMQ.TelegramConfiguration;
+import com.nse.analyser.rabbitMQ.dtos.Communications;
+import com.nse.analyser.rabbitMQ.producer.TelegramPublisher;
+import com.nse.analyser.services.impl.ChainSnapshotServiceImpl;
 import com.nse.analyser.services.impl.ModelService;
 import com.nse.analyser.services.jobs.NseDataCollectionJob;
 import com.nse.analyser.services.jobs.automated.jobAdministration.CollectionExecutorService;
@@ -15,14 +20,18 @@ import com.nse.analyser.services.jobs.automated.jobAdministration.CollectionTask
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.boot.context.event.ApplicationStartedEvent;
 import org.springframework.context.event.EventListener;
+import org.springframework.core.annotation.Order;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -45,8 +54,14 @@ public class DailyJobs {
     private final CollectionExecutorService collectionExecutorService;
     private final CollectionTaskBuilder taskBuilder;
 
-    private Set<LocalDate> holidayDates;
-    @EventListener(ApplicationReadyEvent.class)
+    public static Set<LocalDate> holidayDates;
+
+    private final TelegramPublisher telegramPublisher;
+    private final TelegramConfiguration telegramConfiguration;
+
+    private final ChainSnapshotServiceImpl chainSnapshotService;
+    @Order(3)
+    @EventListener(ApplicationStartedEvent.class)
     public void startDataCollection(){
         //Get all Symbols and expires
         mapSymbolsAndExpiresForNSE();
@@ -80,7 +95,7 @@ public class DailyJobs {
 
         if(mapOfSymbolToExpiry.isEmpty()){
             mapIndexAndExpiresFromFyers();
-            mapSymbolsAndExpiresFromFyers();
+//            mapSymbolsAndExpiresFromFyers();
 //            mapOfSymbolToExpiry = modelService.mapIndicesAndExpiry();
 //            nseDataCollectionJob.saveSymbolsAndExpires(mapOfSymbolToExpiry);
         }
@@ -174,11 +189,11 @@ public class DailyJobs {
 //        }
 //    }
 
-//    @Scheduled(cron = "0 * * * * *", zone = "Asia/Kolkata")
+    @Scheduled(cron = "0 * * * * *", zone = "Asia/Kolkata")
     public void executeClickHouseDuringDay(){
         LocalTime now = LocalTime.now(IST);
 //          Use this to control market timing injection
-        if (now.isBefore(LocalTime.of(9, 10)) ||
+        if (now.isBefore(LocalTime.of(9, 15)) ||
                 now.isAfter(LocalTime.of(15, 35)) || isHoliday()) {
             return;
         }
@@ -215,10 +230,7 @@ public class DailyJobs {
                 tasks.size()
         );
 
-        collectionExecutorService.execute(
-                tasks,
-                TimeOfDay.DURING_DAY,
-                DataBaseChoice.ClickHouse
+        collectionExecutorService.execute(tasks, TimeOfDay.DURING_DAY, DataBaseChoice.ClickHouse
         );
     }
 
@@ -286,8 +298,8 @@ public class DailyJobs {
         executeNseDataCollection(TimeOfDay.PRE_OPEN);
     }
 
-//    @Scheduled(cron = "0 50 8 * * MON-FRI", zone = "Asia/Kolkata")
-    @Scheduled(cron = "0 * * * * *", zone = "Asia/Kolkata")
+    @Scheduled(cron = "0 50 8 * * MON-FRI", zone = "Asia/Kolkata")
+//    @Scheduled(cron = "0 * * * * *", zone = "Asia/Kolkata")
     public void previousDay() {
         log.info("Collecting previous day data for all symbols and indices");
         executeNseDataCollection(TimeOfDay.PREVIOUS_DAY);
@@ -304,10 +316,10 @@ public class DailyJobs {
 
         LocalTime now = LocalTime.now(IST);
 //          Use this to control market timing injection
-        if (now.isBefore(LocalTime.of(9, 10)) ||
-                    now.isAfter(LocalTime.of(15, 35)) || isHoliday()) {
-            return;
-        }
+//        if (now.isBefore(LocalTime.of(9, 15)) ||
+//                    now.isAfter(LocalTime.of(15, 35)) || isHoliday()) {
+//            return;
+//        }
         log.info("Collecting data for all symbols and indices during market hours, time {}",now);
         executeNseDataCollection(TimeOfDay.DURING_DAY);
     }

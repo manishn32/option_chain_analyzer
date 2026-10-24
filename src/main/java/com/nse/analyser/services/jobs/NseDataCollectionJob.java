@@ -1,13 +1,19 @@
 package com.nse.analyser.services.jobs;
 
 import com.nse.analyser.dtos.nseResponse.DataFillRecord;
+import com.nse.analyser.dtos.nseResponse.HistoricalVolatility;
 import com.nse.analyser.enums.OptionType;
 import com.nse.analyser.enums.TimeOfDay;
 import com.nse.analyser.models.chainSnapShot.StrikeSnapshot;
 import com.nse.analyser.models.holidayInfo.Holiday;
 import com.nse.analyser.models.holidayInfo.HolidayList;
+import com.nse.analyser.rabbitMQ.dtos.Communications;
+import com.nse.analyser.rabbitMQ.producer.TelegramPublisher;
 import com.nse.analyser.services.impl.ChainSnapshotServiceImpl;
 import com.nse.analyser.services.schedulers.FyersOptionChainService;
+import com.nse.analyser.services.schedulers.HistoricalVolatilityReader;
+import com.nse.analyser.utils.DataTransformUtil;
+import com.nse.analyser.utils.DateTimeFormatters;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DuplicateKeyException;
 import com.nse.analyser.constants.CollectionNames;
@@ -32,15 +38,12 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
+
 import org.springframework.data.mongodb.core.query.Query;
 
 import static com.nse.analyser.utils.DateTimeFormatters.IST;
@@ -55,6 +58,7 @@ public class NseDataCollectionJob {
     private final SnapshotIdGenerator snapshotIdGenerator;
     private final MongoTemplate mongoTemplate;
     private final FyersOptionChainService fyersOptionChainService;
+    private final TelegramPublisher telegramPublisher;
 
     private final ChainSnapshotServiceImpl chainSnapshotServiceImpl;
     public Map<InstrumentType, Map<String, List<String>>> findNfoExpires(){
@@ -102,8 +106,25 @@ public class NseDataCollectionJob {
 //                        symbol,
 //                        expiryDate
 //                );
-        ChainSnapshot snapshot = fyersOptionChainService.getChainSnapshotsFromFyers(instrumentType,symbol,expiryDate,10,false);
+        ChainSnapshot snapshot = fyersOptionChainService.getChainSnapshotsFromFyers(instrumentType,symbol,expiryDate,10,true);
+        long daysToExpiry = DataTransformUtil.calculateTradingDaysToExpiry(Instant.now().getEpochSecond(), expiryDate, "NSE");
+        long totalDayToExpiry = DataTransformUtil.calculateDaysToExpiry(Instant.now().getEpochSecond(),expiryDate,"NSE");
         StrikeSnapshot atmStrike = snapshot.getATMStrike();
+        OptionLeg atmCe = atmStrike.getCe();
+        OptionLeg atmPe = atmStrike.getPe();
+        Double ceIv = atmCe.getGreeks().getIv();
+        Double peIv = atmPe.getGreeks().getIv();
+        Double atmCePrice = atmCe.getLTP();
+        Double atmPePrice = atmPe.getLTP();
+        snapshot.setDaysTillExpiry(totalDayToExpiry);
+        snapshot.setTradingDaysToExpiry(daysToExpiry);
+        double atmIv = (ceIv + peIv) / 2;
+        HistoricalVolatility historicalVolatility = HistoricalVolatilityReader.mapOfVolatility.get(snapshot.getUnderlying());
+        snapshot.setStraddle(DataTransformUtil.calculatePriceRangeStraddle(snapshot.getUnderlyingValue(),atmCePrice+atmPePrice));
+        snapshot.setAtmIvRange(DataTransformUtil.calculatePriceRange(snapshot.getUnderlyingValue(),atmIv,daysToExpiry));
+        snapshot.setHistoricalIv(DataTransformUtil.calculatePriceRange(snapshot.getUnderlyingValue(),historicalVolatility.getApplicableDailyVolatility(),daysToExpiry));
+        snapshot.setHistoricalVolatility(historicalVolatility);
+
         boolean assignedRanks = assignRanks(atmStrike,snapshot.getStrikes());
         snapshot.setPremiumBias(snapshot.getPremiumBias());
         String expiryDateFormatted = Instant.ofEpochSecond(expiryDate).atZone(IST).toLocalDate().format(DateTimeFormatter.ofPattern("dd MMM yyyy"));
@@ -131,7 +152,7 @@ public class NseDataCollectionJob {
                     snapshot.setIdentification(
                             symbol + "_" +
                                     snapshot.getExpiryDate() + "_" +
-                                    LocalDate.now().format(DateTimeFormatter.ofPattern("dd MMM yyyy"))
+                                    LocalDate.now().format(DateTimeFormatters.expiryForSnapShot)
                     );
                 }
                 else{
@@ -171,6 +192,9 @@ public class NseDataCollectionJob {
                 throw exp;
             }
             catch (Exception ex){
+                Communications communications = new Communications();
+                communications.setMessage("Option chain analyser App failed for symbol %s timeframe %s expiry = %s \n Error: %s".formatted(symbol,Instant.ofEpochSecond(expiryDate).atZone(IST).toLocalDate().toString(),timeOfDay,ex));
+                telegramPublisher.publish(communications);
                 log.error("Actual exception class = {}", ex.getClass().getName(), ex);
                 log.error("Exception class = {}", ex.getClass().getName(), ex);
                 throw ex;

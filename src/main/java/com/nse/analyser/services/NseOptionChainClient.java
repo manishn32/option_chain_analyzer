@@ -13,4 +13,5 @@ public interface NseOptionChainClient {
     List<String> fetchStrikePrices(String symbol);
     UnderLyingInfoResponse fetchUnderLyingInfo();
     List<Holiday> fetchNseHolidays();
+
 }

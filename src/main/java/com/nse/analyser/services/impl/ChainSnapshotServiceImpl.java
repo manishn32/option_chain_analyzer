@@ -7,6 +7,7 @@ import com.nse.analyser.models.ChainSnapshot;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.aggregation.Aggregation;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
@@ -48,7 +49,7 @@ public class ChainSnapshotServiceImpl {
                         .is(expiryDate.format(expiryDateFormatter))
         );
 
-        query.with(Sort.by(SnapshotCollectionQueryingConstants.nseTimestamp.name()));
+//        query.with(Sort.by(SnapshotCollectionQueryingConstants.nseTimestamp.name()));
 
         return mongoTemplate.find(
                 query,
@@ -56,6 +57,46 @@ public class ChainSnapshotServiceImpl {
                 getCollectionName(instrumentType)
         );
     }
+
+
+    public ChainSnapshot findAllSnapshots(
+            String underlying,
+            InstrumentType instrumentType,
+            String expiryDate) {
+
+        Query query = new Query();
+
+        query.addCriteria(
+                Criteria.where("expiryDate").is(expiryDate)
+        );
+
+        query.addCriteria(
+                Criteria.where(SnapshotCollectionQueryingConstants.symbol.name()).in(underlying)
+        );
+
+
+//
+//        query.with(Sort.by(SnapshotCollectionQueryingConstants.snapshotTime.name()).descending());
+
+//        Aggregation aggregation = Aggregation.newAggregation(
+//                Aggregation.match(
+//                        Criteria.where("expiryDate").is(expiryDate)
+//                                .and("underlying").is(underlying)
+//                ),
+//                Aggregation.sort(Sort.Direction.DESC, "snapshotTime"),
+//                Aggregation.group("underlying")
+//                        .first(Aggregation.ROOT).as("latest"),
+//                Aggregation.replaceRoot("latest")
+//        );
+
+        return mongoTemplate.findOne(
+                query,
+                ChainSnapshot.class,
+                getCollectionName(instrumentType)
+        );
+//                .getMappedResults();
+    }
+
     public Optional<ChainSnapshot> find_snapshot_for_given_time(
             String underlying,
             LocalDate expiryDate,

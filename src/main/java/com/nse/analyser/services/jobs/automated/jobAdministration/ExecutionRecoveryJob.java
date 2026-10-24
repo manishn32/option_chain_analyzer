@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -18,6 +19,7 @@ public class ExecutionRecoveryJob {
 
     private final CollectionStateRepository repository;
 
+    @Order(2)
     @EventListener(ApplicationReadyEvent.class)
     public void recoverBrokenExecutions() {
 

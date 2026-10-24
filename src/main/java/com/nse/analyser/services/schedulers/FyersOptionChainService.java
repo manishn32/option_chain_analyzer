@@ -59,6 +59,9 @@ public class FyersOptionChainService {
         long totalPutOi = 0L;
         long totalCallOi = 0L;
 
+        long totalPutOiChange = 0L;
+        long totalCallOiChange = 0L;
+
         for (OptionChainItemDTO dto : data.getOptionsChain()) {
 
             // Nifty row
@@ -86,6 +89,7 @@ public class FyersOptionChainService {
 
                 totalCallVolume += dto.getVolume();
                 totalCallOi +=dto.getOi();
+                totalCallOiChange += dto.getOich();
             }
             else if ("PE".equalsIgnoreCase(dto.getOptionType())) {
 
@@ -100,6 +104,7 @@ public class FyersOptionChainService {
 
                 totalPutVolume += dto.getVolume();
                 totalPutOi += dto.getOi();
+                totalPutOiChange += dto.getOich();
             }
         }
 
@@ -108,7 +113,7 @@ public class FyersOptionChainService {
                 underlyingRow,
                 data,
                 totalCallVolume,
-                totalPutVolume,expiry, totalPutOi, totalCallOi
+                totalPutVolume,expiry, totalPutOi, totalCallOi , totalPutOiChange, totalCallOiChange
         );
     }
 
@@ -120,7 +125,9 @@ public class FyersOptionChainService {
             long totalPutVolume,
             Long expiry,
             long totalPutOi,
-            long totalCallOi) {
+            long totalCallOi,
+            long totalPutOiChange,
+            long totalCallOiChange) {
 
         String underlying =
                 underlyingRow != null
@@ -139,7 +146,6 @@ public class FyersOptionChainService {
         Double pcrOi =
                 data.getCallOi() > 0
                         ?
-//                        (double) data.getPutOi() / data.getCallOi()
                         NumberUtils.roundTo2Decimals((double) totalPutOi / totalCallOi)
                         : 0.0;
 
@@ -148,17 +154,6 @@ public class FyersOptionChainService {
                         ? NumberUtils.roundTo2Decimals((double) totalPutVolume / totalCallVolume)
                         : 0.0;
 
-//        Activity ceActivity =
-//                new Activity(
-//                        data.getCallOi(),
-//                        totalCallVolume
-//                );
-//
-//        Activity peActivity =
-//                new Activity(
-//                        data.getPutOi(),
-//                        totalPutVolume
-//                );
 
         Instant snapshotTime = Instant.now();
 
@@ -187,18 +182,17 @@ public class FyersOptionChainService {
         snapshot.setPremium((underlyingRow != null
                 ? underlyingRow.getFp()
                 : 0.0 ) - (underlyingValue != null ? underlyingValue:0.0) );
-//        snapshot.setStrikePrice(strike);
+
 
         snapshot.setSnapshotTime(snapshotTime);
 
+
+
+
+        snapshot.setPcr(NumberUtils.safeDivide(data.getPutOi(),data.getCallOi()));
         snapshot.setPcr_oi(pcrOi);
-
+        snapshot.setPcr_oi_change(NumberUtils.safeDivide(totalPutOiChange,totalCallOiChange));
         snapshot.setPcr_volume(pcrVolume);
-
-//        snapshot.setCeActivity(ceActivity);
-//
-//        snapshot.setPeActivity(peActivity);
-
         snapshot.setExpiryDate(Instant.ofEpochSecond(expiry).atZone(IST).toLocalDate().format(DateTimeFormatter.ofPattern("dd MMM yyyy")).toString());
 
 
@@ -296,6 +290,7 @@ public class FyersOptionChainService {
                 .snapshotTimestamp(snapshotTime)
                 .reference_oi(dto.getPrevOi())
                 .expiryDate(LocalDate.from(Instant.ofEpochSecond(expiry).atZone(IST)))
+                .greeks(dto.getGreeks())
                 .optionType(
                         "CE".equalsIgnoreCase(dto.getOptionType())
                                 ? OptionType.CE
